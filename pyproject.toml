@@ -2,6 +2,9 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.ruff]
+line-length = 120
+
 [project]
 name = "yai-nexus-agentkit"
 version = "0.0.1"
@@ -23,11 +26,13 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
+    "pydantic>=2.0",
+    "langchain",
     "langchain-core",
     "langchain",
     "langgraph",
     "pydantic",
-    "yai-nexus-configuration",
+    "yai-nexus-configuration>=0.1.1",
 ]
 
 [project.urls]
@@ -40,6 +45,7 @@ Repository = "https://github.com/yai-nexus/yai-nexus-agentkit"
 openai = ["langchain-openai>=0.1.0"]
 zhipu = ["langchain-community", "zhipuai"]
 anthropic = ["langchain-anthropic"]
+tongyi = ["langchain-community", "dashscope"]
 
 # Checkpoint/Persistence Backends
 postgres = ["tortoise-orm", "psycopg"]
@@ -61,6 +67,7 @@ all = [
     "yai-nexus-agentkit[openai]",
     "yai-nexus-agentkit[zhipu]",
     "yai-nexus-agentkit[anthropic]",
+    "yai-nexus-agentkit[tongyi]",
     "yai-nexus-agentkit[postgres]",
     "yai-nexus-agentkit[redis]",
     "yai-nexus-agentkit[fastapi]",

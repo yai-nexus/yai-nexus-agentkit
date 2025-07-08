@@ -6,6 +6,7 @@
 不同提供商的 LLM 客户端，如 OpenAI, ZhipuAI 等。
 """
 
+import os
 from enum import Enum
 from typing import Any, Dict
 
@@ -19,6 +20,8 @@ class LLMProvider(str, Enum):
     OPENAI = "openai"
     ZHIPU = "zhipu"
     ANTHROPIC = "anthropic"
+    OPENROUTER = "openrouter"
+    TONGYI = "tongyi"
 
 
 class LLMConfig(BaseModel):
@@ -68,10 +71,7 @@ def create_llm(config: Dict[str, Any]) -> BaseChatModel:
         try:
             from langchain_openai import ChatOpenAI
         except ImportError:
-            raise ImportError(
-                "使用 OpenAI 需要安装 langchain-openai 包。"
-                "请运行: pip install langchain-openai"
-            )
+            raise ImportError("使用 OpenAI 需要安装 langchain-openai 包。" "请运行: pip install langchain-openai")
         return ChatOpenAI(**config_copy)
 
     elif provider == LLMProvider.ZHIPU:
@@ -89,10 +89,38 @@ def create_llm(config: Dict[str, Any]) -> BaseChatModel:
             from langchain_anthropic import ChatAnthropic
         except ImportError:
             raise ImportError(
-                "使用 Anthropic 需要安装 langchain-anthropic 包。"
-                "请运行: pip install langchain-anthropic"
+                "使用 Anthropic 需要安装 langchain-anthropic 包。" "请运行: pip install langchain-anthropic"
             )
         return ChatAnthropic(**config_copy)
+
+    elif provider == LLMProvider.OPENROUTER:
+        try:
+            from langchain_openai import ChatOpenAI
+        except ImportError:
+            raise ImportError(
+                "使用 OpenRouter (通过 OpenAI 兼容层) 需要安装 langchain-openai 包。"
+                "请运行: pip install langchain-openai"
+            )
+        # OpenRouter 使用 OpenAI 兼容的 API，因此我们可以复用 ChatOpenAI。
+        # config_copy 中应包含 base_url="https://openrouter.ai/api/v1"
+
+        # 手动从 OPENROUTER_API_KEY 环境变量中获取密钥，并将其传递给 api_key 参数
+        # 这是因为 ChatOpenAI 默认会寻找 OPENAI_API_KEY，而我们的配置是分开的。
+        if "api_key" not in config_copy:
+            config_copy["api_key"] = os.getenv("OPENROUTER_API_KEY")
+
+        return ChatOpenAI(**config_copy)
+
+    elif provider == LLMProvider.TONGYI:
+        try:
+            from langchain_community.chat_models import ChatTongyi
+        except ImportError:
+            raise ImportError(
+                "使用通义千问需要安装 langchain-community 和 dashscope 包。"
+                "请运行: pip install langchain-community dashscope"
+            )
+        # 密钥将通过 DASHSCOPE_API_KEY 环境变量自动加载
+        return ChatTongyi(**config_copy)
 
     else:
         # 这个分支理论上不会被达到，因为枚举已经做了检查

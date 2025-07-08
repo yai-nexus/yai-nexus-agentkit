@@ -1,42 +1,45 @@
 # -*- coding: utf-8 -*-
 """API 路由模块，定义了聊天相关的端点。"""
+
 from fastapi import APIRouter
 from typing import TYPE_CHECKING
 from pydantic import BaseModel
+from fastapi import Depends
+from ..core.services import ChatService
 
 # 使用 TYPE_CHECKING 来避免循环导入，这在大型应用中很常见。
 if TYPE_CHECKING:
-    from ..main import AppContainer
+    pass
+
 
 class ChatRequest(BaseModel):
-    """聊天请求的模型，用于从请求体中接收 prompt。"""
+    """聊天请求的数据模型。"""
+
     prompt: str
 
 
-def create_router(container: "AppContainer") -> APIRouter:
+class ChatResponse(BaseModel):
+    """聊天响应的数据模型。"""
+
+    response: str
+
+
+# --- API 路由 ---
+router = APIRouter()
+
+
+def get_chat_service() -> ChatService:
+    """依赖注入函数，用于获取 ChatService 实例。"""
+    from ..main import container
+
+    return container.chat_service
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def invoke_llm(request: ChatRequest, service: ChatService = Depends(get_chat_service)):
     """
-    创建并返回一个包含聊天端点的 FastAPI 路由。
-
-    Args:
-        container: 应用的依赖注入容器实例。
-
-    Returns:
-        一个配置好的 APIRouter 实例。
+    调用语言模型进行聊天。
+    接收一个包含 prompt 的请求，并返回模型的响应。
     """
-    router = APIRouter(
-        prefix="/chat",
-        tags=["Chat"],
-    )
-
-    # 从容器中获取服务实例
-    chat_service = container.chat_service
-
-    @router.post("/")
-    async def handle_chat(request: ChatRequest):
-        """
-        处理聊天请求，返回 AI 的回复。
-        """
-        reply = await chat_service.get_reply(request.prompt)
-        return {"reply": reply}
-
-    return router 
+    response_text = await service.get_reply(request.prompt)
+    return ChatResponse(response=response_text)

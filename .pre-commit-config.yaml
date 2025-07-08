@@ -14,7 +14,7 @@ repos:
       - id: ruff
         args: [--fix, --show-fixes, --exit-non-zero-on-fix]
       # 在暂存的文件上运行格式化工具 (替代 isort)
-      - id: ruff-format
+      # - id: ruff-format
 
   # Black: 无妥协的代码格式化工具
   - repo: https://github.com/psf/black
@@ -22,4 +22,4 @@ repos:
     hooks:
       - id: black
         # 设置行长，可以根据团队规范调整
-        args: [--line-length=88] 
+        args: [--line-length=120] 
