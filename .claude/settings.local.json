@@ -4,7 +4,8 @@
       "Bash(python:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m \"$(cat <<''EOF''\nfeat: 增强 LLM 模块功能，添加多模型支持和工厂模式\n\n- 添加模型枚举类 (OpenAIModel, AnthropicModel, ZhipuModel, TongyiModel, OpenRouterModel)\n- 实现 LLMFactory 类用于管理多个 LLM 实例\n- 更新 __init__.py 导出新的类和枚举\n- 完善 CLAUDE.md 文档，添加使用示例\n- 移除 .pre-commit-config.yaml 配置文件\n- 添加 LLM 使用演示脚本和技术设计文档\n- 更新 Claude 设置配置\nEOF\n)\")"
+      "Bash(PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m \"$(cat <<''EOF''\nfeat: 增强 LLM 模块功能，添加多模型支持和工厂模式\n\n- 添加模型枚举类 (OpenAIModel, AnthropicModel, ZhipuModel, TongyiModel, OpenRouterModel)\n- 实现 LLMFactory 类用于管理多个 LLM 实例\n- 更新 __init__.py 导出新的类和枚举\n- 完善 CLAUDE.md 文档，添加使用示例\n- 移除 .pre-commit-config.yaml 配置文件\n- 添加 LLM 使用演示脚本和技术设计文档\n- 更新 Claude 设置配置\nEOF\n)\")",
+      "Bash(PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m \"$(cat <<''EOF''\nupdate: 更新 Claude 设置配置权限\nEOF\n)\")"
     ],
     "deny": []
   }
