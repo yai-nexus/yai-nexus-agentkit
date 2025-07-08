@@ -1,8 +1,22 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-应用配置模块。
 
-该文件可以用于定义 FastAPI 示例应用特有的配置。
-在这个版本中，所有核心的 LLM 配置都已移至 pyproject.toml 文件中，
-并通过 yai-nexus-configuration 库进行加载。
-"""
+from typing import List, Optional
+
+from yai_nexus_configuration import NexusConfig, nexus_config
+
+
+class LLMConfig(NexusConfig):
+    """Represents the configuration for a single LLM."""
+
+    provider: str
+    model: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+@nexus_config(data_id="llms.json")
+class AllLLMConfigs(NexusConfig):
+    """Represents the container for all LLM configurations."""
+
+    llms: List[LLMConfig]

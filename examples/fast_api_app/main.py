@@ -7,13 +7,14 @@ FastAPI 应用主入口文件。
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from yai_nexus_configuration import config
 
 # --- 依赖项导入 ---
-# 显式地从我们的包和应用模块中导入所需的类
+from yai_nexus_configuration import NexusConfigManager
+
 from .api import chat
-from yai_nexus_agentkit.llm import create_llm
+from .configs import AllLLMConfigs
 from .core.services import ChatService
+from yai_nexus_agentkit.llm import create_llm
 
 
 # --- 依赖注入容器 ---
@@ -23,18 +24,7 @@ class AppContainer:
     在应用启动时，这个类的实例将被创建，并负责实例化所有的服务和客户端。
     """
 
-    def __init__(self):
-        # 1. 从 yai-nexus-configuration 加载 LLM 配置列表
-        llm_configs = config.get("llms", [])
-        if not llm_configs:
-            raise ValueError("在配置中未找到 'llms' 部分，请检查 pyproject.toml。")
-
-        # 2. 使用第一个配置，通过工厂函数创建具体的 LLM 客户端
-        #    这里创建的是一个 LangChain 的 ChatOpenAI 实例。
-        self.llm_client = create_llm(llm_configs[0])
-
-        # 3. 将具体的客户端实例注入到服务中
-        self.chat_service = ChatService(llm=self.llm_client)
+    chat_service: ChatService
 
 
 # --- FastAPI 应用生命周期管理 ---
@@ -55,12 +45,31 @@ async def lifespan(app: FastAPI):
     )
     logging.info("应用开始启动...")
 
-    # 2. 创建并赋值全局的依赖注入容器
+    # 2. 初始化配置管理器并加载配置
+    logging.info("初始化配置管理器...")
+    manager = NexusConfigManager.with_file(base_path="configs")
+    manager.register(AllLLMConfigs)
+    all_llm_configs = manager.get_config(AllLLMConfigs)
+    logging.info("LLM 配置已加载。")
+
+    if not all_llm_configs.llms:
+        raise ValueError(
+            "在 'configs/DEFAULT_GROUP/llms.json' 中未找到或加载 'llms' 失败。"
+        )
+
+    # 3. 创建核心服务
+    logging.info("创建核心服务...")
+    llm_client = create_llm(all_llm_configs.llms[0].model_dump())
+    chat_service = ChatService(llm=llm_client)
+    logging.info("核心服务已创建。")
+
+    # 4. 创建并赋值全局的依赖注入容器
     global container
     container = AppContainer()
-    logging.info("依赖注入容器已创建。")
+    container.chat_service = chat_service
+    logging.info("依赖注入容器已创建并填充。")
 
-    # 3. 在容器创建后，再将路由包含进来
+    # 5. 在容器创建后，再将路由包含进来
     app.include_router(chat.create_router(container))
     logging.info("API 路由已加载。")
 
@@ -68,6 +77,8 @@ async def lifespan(app: FastAPI):
     yield
     # 在应用关闭时执行
     logging.info("应用开始关闭...")
+    # 关闭配置管理器，释放资源（如 watcher 线程）
+    manager.close()
     logging.info("应用关闭完成。")
 
 

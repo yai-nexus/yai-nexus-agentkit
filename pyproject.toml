@@ -46,7 +46,7 @@ postgres = ["tortoise-orm", "psycopg"]
 redis = ["redis"]
 
 # Web Adapter Helpers
-fastapi = ["fastapi", "sse-starlette"]
+fastapi = ["fastapi", "sse-starlette", "uvicorn"]
 
 # Development and Quality Tools
 dev = [
@@ -70,13 +70,4 @@ all = [
 [tool.pytest.ini_options]
 pythonpath = [
   ".", "src"
-]
-
-[tool.yai_nexus_configuration]
-# LLM 客户端配置
-# 这是一个配置列表，可以定义多个 LLM 提供商
-# 工厂将根据这里的配置来创建客户端实例
-llms = [
-    { provider = "openai", model = "gpt-3.5-turbo", api_key = "${OPENAI_API_KEY}" },
-    # { provider = "zhipu", model = "glm-4", api_key = "${ZHIPU_API_KEY}" },
 ]

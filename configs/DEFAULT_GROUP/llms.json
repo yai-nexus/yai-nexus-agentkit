@@ -1,0 +1,16 @@
+{
+  "llms": [
+    {
+      "provider": "openai",
+      "model": "gpt-4o",
+      "api_key": "your_openai_api_key_here",
+      "base_url": "https://api.openai.com/v1"
+    },
+    {
+      "provider": "openai",
+      "model": "gpt-3.5-turbo",
+      "api_key": "your_openai_api_key_here",
+      "base_url": "https://api.openai.com/v1"
+    }
+  ]
+} 
