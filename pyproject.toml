@@ -4,32 +4,58 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yai-nexus-agentkit"
-version = "0.0.1"
-description = "A Python framework for building AI Agents."
+version = "1.0.0"
+description = "A Python toolkit for building AI applications, designed to be flexible and extensible."
 authors = [
     { name="YAI-Nexus", email="contact@yai-nexus.com" },
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
+dependencies = [
+    "langchain-core",
+    "langgraph",
+    "pydantic"
+]
 
 [project.urls]
-Homepage = "https://github.com/yai-nexus/agentkit"
-Repository = "https://github.com/yai-nexus/agentkit"
+Homepage = "https://github.com/yai-nexus/yai-nexus-agentkit"
+Repository = "https://github.com/yai-nexus/yai-nexus-agentkit"
+
+
+[project.optional-dependencies]
+# LLM Providers
+openai = ["openai>=1.12"]
+zhipu = ["zhipuai"]
+anthropic = ["anthropic"]
+
+# Checkpoint/Persistence Backends
+postgres = ["tortoise-orm", "psycopg"]
+redis = ["redis"]
+
+# Web Adapter Helpers
+fastapi = ["fastapi", "sse-starlette"]
+
+# A bundle for convenience
+all = [
+    "yai-nexus-agentkit[openai]",
+    "yai-nexus-agentkit[zhipu]",
+    "yai-nexus-agentkit[postgres]",
+    "yai-nexus-agentkit[redis]",
+    "yai-nexus-agentkit[fastapi]",
+]
 
 [tool.pytest.ini_options]
 pythonpath = [
-    ".",
-    "src",
-] 
+  ".", "src"
+]
