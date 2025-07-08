@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yai-nexus-agentkit"
-version = "1.0.0"
+version = "0.0.1"
 description = "A Python toolkit for building AI applications, designed to be flexible and extensible."
 authors = [
     { name="YAI-Nexus", email="contact@yai-nexus.com" },
@@ -24,8 +24,10 @@ classifiers = [
 ]
 dependencies = [
     "langchain-core",
+    "langchain",
     "langgraph",
-    "pydantic"
+    "pydantic",
+    "yai-nexus-configuration",
 ]
 
 [project.urls]
@@ -35,9 +37,9 @@ Repository = "https://github.com/yai-nexus/yai-nexus-agentkit"
 
 [project.optional-dependencies]
 # LLM Providers
-openai = ["openai>=1.12"]
-zhipu = ["zhipuai"]
-anthropic = ["anthropic"]
+openai = ["langchain-openai>=0.1.0"]
+zhipu = ["langchain-community", "zhipuai"]
+anthropic = ["langchain-anthropic"]
 
 # Checkpoint/Persistence Backends
 postgres = ["tortoise-orm", "psycopg"]
@@ -46,16 +48,35 @@ redis = ["redis"]
 # Web Adapter Helpers
 fastapi = ["fastapi", "sse-starlette"]
 
+# Development and Quality Tools
+dev = [
+    "black",
+    "ruff",
+    "pre-commit",
+    "pytest-cov",
+]
+
 # A bundle for convenience
 all = [
     "yai-nexus-agentkit[openai]",
     "yai-nexus-agentkit[zhipu]",
+    "yai-nexus-agentkit[anthropic]",
     "yai-nexus-agentkit[postgres]",
     "yai-nexus-agentkit[redis]",
     "yai-nexus-agentkit[fastapi]",
+    "yai-nexus-agentkit[dev]",
 ]
 
 [tool.pytest.ini_options]
 pythonpath = [
   ".", "src"
+]
+
+[tool.yai_nexus_configuration]
+# LLM 客户端配置
+# 这是一个配置列表，可以定义多个 LLM 提供商
+# 工厂将根据这里的配置来创建客户端实例
+llms = [
+    { provider = "openai", model = "gpt-3.5-turbo", api_key = "${OPENAI_API_KEY}" },
+    # { provider = "zhipu", model = "glm-4", api_key = "${ZHIPU_API_KEY}" },
 ]
