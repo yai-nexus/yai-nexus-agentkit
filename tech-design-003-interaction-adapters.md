@@ -9,134 +9,143 @@
 
 此方案旨在为 `yai-nexus-agentkit` 定义一个标准的、健壮的、面向未来的交互层，用于连接 Agent 后端与前端用户界面。
 
-### 1.2. 演进与最终决策：采纳 AG-UI 协议
+### 1.2. 演进与最终决策：langgraph + AG-UI 协议 + sse-starlette
 
-在初步设计中，我们曾计划自研一个 `SSEAdapter` 来封装流式响应逻辑。然而，经过进一步的社区调研和评审，我们发现了一个更优越的策略：**直接集成 AG-UI (Agent-User Interaction) 协议**。
+在方案探索过程中，我们明确了最佳的技术组合，它兼顾了强大的业务逻辑、标准的交互协议和稳健的传输实现：
 
-AG-UI 是一个旨在**标准化前端应用与 AI Agent 之间连接方式**的开放协议。它提供了一套丰富的、标准化的事件词汇表，用于描述 Agent 在执行任务时的各种状态（如思考、工具调用、生成文本等），并提供了官方的 Python SDK。
+- **业务编排层 (`langgraph`)**: 作为 Agent 的“大脑”，负责定义和执行所有复杂的业务逻辑，包括状态管理、工具调用和与 LLM 的多轮交互。
+- **数据契约层 (`ag-ui-protocol`)**: 作为 Agent 与前端 UI 之间的“普通话”，提供了一套标准的、与具体实现无关的 Pydantic 事件模型。
+- **传输层 (`sse-starlette`)**: 作为 FastAPI 与浏览器之间的“管道”，提供了稳定、高效的 SSE (Server-Sent Events) 连接实现，并内置心跳机制。
 
-**最终决策：废弃自研适配器方案，全面采纳并集成官方 `ag-ui` Python SDK。**
+**最终决策：不采用任何大而全的 Agent 框架（如 `pydantic-ai`），而是通过上述三个库的组合，构建一个分层清晰、高度解耦的交互架构。**
 
-这一决策的优势是压倒性的：
-- **遵循开放标准**: 确保我们的实现与一个不断发展的社区标准完全兼容，具备强大的互操作性。
-- **避免重复造轮子**: 直接利用官方 SDK 的健壮功能，包括事件模型、SSE 传输、框架集成等。
-- **降低维护成本**: 协议的演进将由社区和 SDK 维护者负责，我们只需更新依赖即可。
-- **赋能丰富的前端体验**: 标准化的事件流允许前端构建出信息更丰富、交互性更强的用户界面。
+这个决策的优势是：
+- **关注点分离 (SoC)**: 每个库只做一件事，并做到最好，使得架构清晰、易于维护。
+- **灵活性与可扩展性**: 我们可以完全掌控 Agent 的内部逻辑 (`langgraph`) 和 API 的行为，不受任何上层框架的限制。
+- **遵循开放标准**: `ag-ui-protocol` 确保了与前端社区的互操作性。
 
-## 2. 核心设计：基于 AG-UI SDK
+## 2. 核心设计：三层协作模型
 
-我们的交互层将不再包含自定义的适配器代码，而是完全基于 `ag-ui` 库。
+我们的交互层将由三个紧密协作的组件构成。
 
-### 2.1. 核心概念
+### 2.1. Langgraph Agent (业务逻辑核心)
+- Agent 的所有业务逻辑，包括调用 LLM、使用工具、维护状态等，全部在 `langgraph` 中定义。
+- 我们将主要使用 `langgraph` 的 `astream_events()` 方法，它会实时地、异步地产生 Agent 执行过程中的各种内部事件（如 `on_chat_model_stream`, `on_tool_start`, `on_tool_end` 等）。
 
-- **AG-UI 服务器**: 我们将使用 `ag-ui` 提供的工具，在 FastAPI 应用中快速启动一个符合协议的服务器。
-- **Agent 回调**: 我们需要实现一个核心的 Agent 函数（回调），它接收用户请求，并 `yield` 出符合 AG-UI 规范的事件对象。
-- **标准事件模型**: 我们将直接使用 `ag-ui` SDK 中定义的 Pydantic 模型来表示各种事件，例如 `Message`, `Text`, `State`, `Tools`, `ToolOutput` 等。业务逻辑（如 `llm.astream`）的输出将被重构，以生成这些标准化的事件对象。
+### 2.2. AG-UI Protocol (标准化事件模型)
+- 我们将使用 `ag-ui-protocol` 包中定义的 Pydantic 模型（如 `Text`, `Message`, `State`, `Task`）作为 API 的数据格式。
+- 我们的核心任务是编写一个**适配器 (Adapter)**，将 `langgraph` 的内部事件流，实时翻译成 `ag-ui-protocol` 的标准事件流。
 
-### 2.2. 依赖
+### 2.3. SSE-Starlette (SSE 传输实现)
+- 在 FastAPI 中，我们将使用 `sse-starlette` 提供的 `EventSourceResponse`。
+- `EventSourceResponse` 接收一个异步生成器（也就是我们的适配器），并自动处理 SSE 协议的所有细节，包括正确的MIME类型、事件格式化和连接保持（keep-alive）。
 
-需要在 `pyproject.toml` 中添加 `ag-ui` 作为核心依赖。
+## 3. 依赖
+
+需要在 `pyproject.toml` 的 `[project.optional-dependencies]` 中为 `fastapi` 分组添加以下依赖：
 
 ```toml
-[project.dependencies]
-# ... 其他依赖
-ag-ui = "^0.1.0" # 版本号待定
+# Web Adapter Helpers
+fastapi = [
+    "fastapi", 
+    "uvicorn", 
+    "ag-ui-protocol", # AG-UI 标准事件模型
+    "sse-starlette"   # FastAPI 的 SSE 传输支持
+]
 ```
 
-## 3. 使用示例：在 FastAPI 中集成 AG-UI
+## 4. 使用示例：在 FastAPI 中集成
 
-集成过程非常简洁。我们不再需要手动管理 SSE 响应，`ag-ui` SDK 会处理所有底层细节。
+集成过程清晰明了，展示了各层如何协作。
 
 ```python
 # examples/fast_api_app/api/chat.py
 
-from fastapi import FastAPI
-from pydantic import BaseModel
+import json
 from typing import AsyncGenerator
 
-# 从 AG-UI SDK 导入所需的组件
-from ag_ui.server import run_in_thread, AgentUI
-from ag_ui.models import Message, Text, State, Node, Edge, Task, Error
-from yai_nexus_agentkit.core.llm import BaseLLM, get_llm_client # 假设的业务逻辑
+from fastapi import APIRouter
+# 从 sse-starlette 导入 EventSourceResponse
+from sse_starlette.sse import EventSourceResponse
 
-# 1. 初始化 FastAPI 应用
-app = FastAPI()
+# 从 ag-ui-protocol 导入事件模型
+from ag_ui.core.events import Text, State, Task, Error
 
-# 2. 定义 Agent 的核心处理逻辑
-# 这个函数将作为 Agent 的回调，处理用户请求并产生事件流
-async def my_agent_callback(task: Task, llm: BaseLLM) -> AsyncGenerator[Node, None]:
+# 从项目中导入预先构建好的 langgraph agent (此处为示意)
+# from yai_nexus_agentkit.orchestration import agent as langgraph_agent
+from some_mock_agent import langgraph_agent # 使用一个模拟 agent 代替
+
+router = APIRouter(prefix="/api")
+
+
+# 核心：事件流适配器 (Async Generator)
+async def event_stream_adapter(task: Task) -> AsyncGenerator[str, None]:
     """
-    一个符合 AG-UI 规范的 Agent 回调函数。
-    它接收一个任务对象，并异步地产生一系列事件节点。
+    调用 langgraph Agent，监听其事件流，并将其适配为 AG-UI 格式的 SSE 事件。
     """
     try:
-        # 产生一个 "正在执行" 的状态更新
-        yield State(status="running")
-        
-        # 从业务逻辑层获取原始的内容流 (这里需要进行适配)
-        # 假设 llm.astream 现在 yield str
-        content_stream = llm.astream(
-            prompt=task.query, # task.query 包含了用户的输入
-            model="gpt-4o"
-        )
-        
-        full_response = ""
-        # 产生 "思考" 事件
-        yield Text("正在思考...")
+        # 步骤 1: 产生 AG-UI 的 "开始" 事件
+        yield json.dumps(State(status="running").model_dump())
 
-        # 将业务逻辑的输出流适配为 AG-UI 事件
-        async for chunk in content_stream:
-            if isinstance(chunk, str):
-                full_response += chunk
-                # 产生增量文本流事件
-                yield Text(content=chunk)
-        
-        # 产生一个包含最终结果的消息事件
-        yield Message(id=task.id, role="assistant", content=full_response)
-        
-        # 产生一个 "完成" 状态更新
-        yield State(status="done")
+        # 步骤 2: 调用 langgraph Agent 的流式事件接口
+        async for event in langgraph_agent.astream_events(
+            {"messages": [("user", task.query)]}, 
+            version="v1"  # 确保使用的是有状态的执行
+        ):
+            kind = event["event"]
+            
+            # 步骤 3: 将 langgraph 事件翻译为 AG-UI 事件
+            if kind == "on_chat_model_stream":
+                # 这是 LLM 的流式输出
+                content = event["data"]["chunk"].content
+                if content:
+                    # 产生 AG-UI 的 "文本块" 事件
+                    yield json.dumps(Text(content=content).model_dump())
+            
+            # TODO: 在此处可以添加对 on_tool_start, on_tool_end 等事件的适配
+            # elif kind == "on_tool_start":
+            #     yield json.dumps(ToolCall(...).model_dump())
+
+        # 步骤 4: 产生 AG-UI 的 "完成" 事件
+        yield json.dumps(State(status="done").model_dump())
 
     except Exception as e:
-        # 产生错误事件
-        yield Error(message=str(e), code="INTERNAL_SERVER_ERROR")
-        # 确保流结束时状态为 "error"
-        yield State(status="error")
+        # 步骤 5: 如果发生错误，产生 AG-UI 的 "错误" 事件
+        error_payload = {"message": "An unexpected error occurred", "details": str(e)}
+        yield json.dumps(Error(code="INTERNAL_SERVER_ERROR", **error_payload).model_dump())
+        yield json.dumps(State(status="error").model_dump())
 
 
-# 3. 创建 AgentUI 实例并注册到 FastAPI
-# a) 创建一个工厂函数来传递依赖（如 LLM客户端）
-def agent_factory():
-    llm_client = get_llm_client() # 获取 LLM 客户端实例
-    
-    # 偏函数，将 llm_client 注入到回调中
-    from functools import partial
-    return partial(my_agent_callback, llm=llm_client)
-
-# b) 创建 AgentUI 实例
-# 这里的 "my-agent" 是 agent_id，前端可以通过它来选择要连接的 Agent
-agent_ui = AgentUI(agent_id="my-agent", agent_fn=agent_factory)
-
-# c) 将 AgentUI 的路由挂载到 FastAPI 应用中
-app.include_router(agent_ui.router)
-
-# 4. (可选) 在后台线程中运行 AgentUI 的消息处理
-# 这对于需要 Agent 主动向前端推送消息的场景很有用
-run_in_thread(agent_ui)
+# API 端点
+@router.post("/chat/stream")
+async def chat_stream_endpoint(task: Task):
+    """
+    接收 AG-UI Task，返回一个标准的 SSE 流。
+    """
+    # 将适配器生成器传递给 EventSourceResponse，它会处理所有 SSE 细节
+    return EventSourceResponse(
+        event_stream_adapter(task),
+        ping=15, # 每 15 秒发送一次心跳以保持连接
+        media_type="text/event-stream"
+    )
 
 ```
 
-## 4. 实施计划（已更新）
+## 5. 实施计划（已更新）
 
-1.  **添加依赖**: 在 `pyproject.toml` 中添加 `ag-ui` 库。
-2.  **移除旧代码**: 从项目中删除所有自研的 `sse_adapter.py` 和 `sse_models.py` 相关的代码和设计。
-3.  **适配业务逻辑**:
-    -   审查核心的流式产出模块（如 `llm.astream`）。
-    -   将其返回值从简单的 `AsyncIterator[str]` 重构为 `AsyncIterator[Union[str, BaseBlock]]` 或直接输出 `ag_ui.models` 中的标准事件对象。这是为了能够生成更丰富的事件类型，如工具调用、状态变更等。
-4.  **集成 AG-UI 路由**:
-    -   在 `examples/fast_api_app` 中，按照上面的示例，创建并挂载 `AgentUI` 的路由。
-    -   实现 `agent_factory` 来处理依赖注入。
-5.  **前端对接**: 与前端开发人员同步，确保他们了解现在后端暴露的是一个标准的 AG-UI 端点，并可以利用其丰富的事件来进行 UI 开发。
-6.  **编写测试**: 为新的 `my_agent_callback` 逻辑编写单元测试，并为 FastAPI 端点编写集成测试。
+1.  **更新依赖**:
+    -   在 `pyproject.toml` 的 `fastapi` 可选依赖中，确认已添加 `ag-ui-protocol` 和 `sse-starlette`。
+    -   移除 `pydantic-ai` 或其他不再需要的依赖。
+    -   运行 `pip install -e ".[fastapi]"` 安装依赖。
+2.  **实现 `langgraph` Agent**:
+    -   在 `yai_nexus_agentkit` 中构建一个或多个 `langgraph` Agent，并能通过工厂或单例模式在 API 层访问到。
+3.  **实现 API 端点与适配器**:
+    -   在 `examples/fast_api_app/api/chat.py` 中，按照上面的示例创建 `chat_stream_endpoint` 路由。
+    -   实现 `event_stream_adapter` 生成器函数，完成从 `langgraph` 事件到 `ag-ui-protocol` 事件的映射。
+4.  **编写测试**:
+    -   为 `event_stream_adapter` 编写单元测试，验证其事件转换逻辑的正确性。
+    -   为 FastAPI 端点编写集成测试，确保 SSE 流能被正确消费。
+5.  **前端对接**:
+    -   与前端开发人员同步，提供此标准的 AG-UI 端点，以便他们可以使用任何兼容的客户端库进行对接。
 
-通过采纳 AG-UI SDK，我们不仅简化了实现，还站在了行业标准的前沿，为构建下一代 AI 应用打下了坚实的基础。 
+通过这个分层、解耦的架构，我们为构建复杂、健壮且面向未来的 AI 应用打下了坚实的基础。 

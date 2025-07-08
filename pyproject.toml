@@ -52,7 +52,7 @@ postgres = ["tortoise-orm", "psycopg"]
 redis = ["redis"]
 
 # Web Adapter Helpers
-fastapi = ["fastapi", "sse-starlette", "uvicorn"]
+fastapi = ["fastapi", "uvicorn", "pydantic-ai"]
 
 # Development and Quality Tools
 dev = [
