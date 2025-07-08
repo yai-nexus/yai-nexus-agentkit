@@ -126,19 +126,23 @@ class LLMFactory:
 
     def get_client_by_name(self, provider_name: str) -> BaseChatModel:
         """
-        通过提供商名称字符串获取客户端。
+        通过提供商名称字符串获取客户端（懒加载）。
 
         Args:
             provider_name: 提供商名称字符串
 
         Returns:
             对应的 LLM 客户端
+
+        Raises:
+            ValueError: 如果提供商名称无效或未找到配置
         """
-        client = self._clients.get(provider_name)
-        if not client:
-            available = list(self._clients.keys())
+        try:
+            provider = LLMProvider(provider_name)
+            return self.get_client(provider)
+        except ValueError:
+            available = list(self._configs.keys())
             raise ValueError(
-                f"未找到提供商 '{provider_name}' 的客户端。"
+                f"不支持的提供商 '{provider_name}'。"
                 f"可用的提供商: {available}"
             )
-        return client

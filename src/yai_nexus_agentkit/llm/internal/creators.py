@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """LLM 客户端创建函数实现。"""
 
-import os
 from typing import Any, Dict
 
 from langchain_core.language_models import BaseChatModel
@@ -16,6 +15,9 @@ def create_openai_client(config: Dict[str, Any]) -> BaseChatModel:
 
     Returns:
         ChatOpenAI 实例
+    
+    Note:
+        需要设置 OPENAI_API_KEY 环境变量
     """
     try:
         from langchain_openai import ChatOpenAI
@@ -36,6 +38,9 @@ def create_zhipu_client(config: Dict[str, Any]) -> BaseChatModel:
 
     Returns:
         ChatZhipuAI 实例
+    
+    Note:
+        需要设置 ZHIPU_API_KEY 环境变量
     """
     try:
         from langchain_community.chat_models import ChatZhipuAI
@@ -56,6 +61,9 @@ def create_anthropic_client(config: Dict[str, Any]) -> BaseChatModel:
 
     Returns:
         ChatAnthropic 实例
+    
+    Note:
+        需要设置 ANTHROPIC_API_KEY 环境变量
     """
     try:
         from langchain_anthropic import ChatAnthropic
@@ -76,6 +84,10 @@ def create_openrouter_client(config: Dict[str, Any]) -> BaseChatModel:
 
     Returns:
         ChatOpenAI 实例（使用 OpenRouter API）
+    
+    Note:
+        需要设置 OPENROUTER_API_KEY 环境变量
+        config 中应包含 base_url="https://openrouter.ai/api/v1"
     """
     try:
         from langchain_openai import ChatOpenAI
@@ -85,17 +97,8 @@ def create_openrouter_client(config: Dict[str, Any]) -> BaseChatModel:
             "请运行: pip install langchain-openai"
         )
 
-    # OpenRouter 使用 OpenAI 兼容的 API，因此我们可以复用 ChatOpenAI。
-    # config 中应包含 base_url="https://openrouter.ai/api/v1"
-
-    # 确保使用 OPENROUTER_API_KEY 环境变量中的密钥
-    # 这会覆盖配置文件中的占位符
-    openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    if openrouter_key:
-        config["api_key"] = openrouter_key
-    elif "api_key" not in config:
-        raise ValueError("未找到 OPENROUTER_API_KEY 环境变量，请确保已正确设置。")
-
+    # OpenRouter 使用 OpenAI 兼容的 API，因此我们可以复用 ChatOpenAI
+    # LangChain 会自动从环境变量中读取 OPENROUTER_API_KEY
     return ChatOpenAI(**config)
 
 
@@ -108,6 +111,9 @@ def create_tongyi_client(config: Dict[str, Any]) -> BaseChatModel:
 
     Returns:
         ChatTongyi 实例
+    
+    Note:
+        需要设置 DASHSCOPE_API_KEY 环境变量
     """
     try:
         from langchain_community.chat_models import ChatTongyi
@@ -116,5 +122,4 @@ def create_tongyi_client(config: Dict[str, Any]) -> BaseChatModel:
             "使用通义千问需要安装 langchain-community 和 dashscope 包。"
             "请运行: pip install langchain-community dashscope"
         )
-    # 密钥将通过 DASHSCOPE_API_KEY 环境变量自动加载
     return ChatTongyi(**config)

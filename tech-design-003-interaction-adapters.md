@@ -1,208 +1,142 @@
 
 # 技术设计方案: 003-交互适配器
 
-## 1. 背景
+## 1. 背景与最终策略
+
+### 1.1. 初始目标
 
 现代 Agent 应用的核心体验之一是流式响应。Agent 在思考和生成内容时，应能实时地将中间结果和最终内容“打字机”般地输出到前端。Server-Sent Events (SSE) 是实现这一功能的理想技术。
 
-旧代码库 (`old/lucas_ai_core/interaction/sse/`) 中包含了一套完整的 SSE 处理逻辑，但它与 LangChain、LangGraph 以及特定的消息模型耦合过深，不够通用。
+此方案旨在为 `yai-nexus-agentkit` 定义一个标准的、健壮的、面向未来的交互层，用于连接 Agent 后端与前端用户界面。
 
-此方案旨在设计一个位于 `src/yai_nexus_agentkit/adapter/` 下的、通用的交互适配器层。它负责将核心业务逻辑（如 LLM 的输出流）与具体的网络协议（如 SSE）进行解耦，并定义一套标准化的数据交换格式。
+### 1.2. 演进与最终决策：采纳 AG-UI 协议
 
-设计目标：
-- **协议封装**: 将 SSE 的实现细节封装起来，业务逻辑无需关心。
-- **框架解耦**: 适配器应能处理任何异步生成器 (`AsyncIterator`)，不与特定的 LLM 或 Agent 框架绑定。
-- **标准化消息**: 定义一套清晰、可扩展的 Pydantic 模型作为前端和后端之间的数据契约。
-- **易于使用**: 在 FastAPI 等 Web 框架中集成应尽可能简单。
+在初步设计中，我们曾计划自研一个 `SSEAdapter` 来封装流式响应逻辑。然而，经过进一步的社区调研和评审，我们发现了一个更优越的策略：**直接集成 AG-UI (Agent-User Interaction) 协议**。
 
-## 2. 核心设计
+AG-UI 是一个旨在**标准化前端应用与 AI Agent 之间连接方式**的开放协议。它提供了一套丰富的、标准化的事件词汇表，用于描述 Agent 在执行任务时的各种状态（如思考、工具调用、生成文本等），并提供了官方的 Python SDK。
 
-我们将设计一个 `SSEAdapter`，它接收一个数据源（异步生成器）和一个消息格式化策略，将其转换为一个标准的 SSE 响应。
+**最终决策：废弃自研适配器方案，全面采纳并集成官方 `ag-ui` Python SDK。**
 
-### 2.1. 标准化消息模型 (`adapter/sse_models.py`)
+这一决策的优势是压倒性的：
+- **遵循开放标准**: 确保我们的实现与一个不断发展的社区标准完全兼容，具备强大的互操作性。
+- **避免重复造轮子**: 直接利用官方 SDK 的健壮功能，包括事件模型、SSE 传输、框架集成等。
+- **降低维护成本**: 协议的演进将由社区和 SDK 维护者负责，我们只需更新依赖即可。
+- **赋能丰富的前端体验**: 标准化的事件流允许前端构建出信息更丰富、交互性更强的用户界面。
 
-首先，定义一套用于 SSE 通信的 Pydantic 模型。这套模型是后端和前端之间的“语言”。
+## 2. 核心设计：基于 AG-UI SDK
 
-```python
-# src/yai_nexus_agentkit/adapter/sse_models.py
+我们的交互层将不再包含自定义的适配器代码，而是完全基于 `ag-ui` 库。
 
-import uuid
-from enum import Enum
-from typing import Any, Dict, List, Literal, Union
-from pydantic import BaseModel, Field
+### 2.1. 核心概念
 
-class BlockType(str, Enum):
-    """数据块类型枚举"""
-    TEXT_STREAM = "text.stream"  # 文本流，打字机效果
-    TOOL_CALL = "tool.call"      # 工具调用
-    TOOL_OUTPUT = "tool.output"  # 工具输出
-    ERROR = "error"              # 错误信息
+- **AG-UI 服务器**: 我们将使用 `ag-ui` 提供的工具，在 FastAPI 应用中快速启动一个符合协议的服务器。
+- **Agent 回调**: 我们需要实现一个核心的 Agent 函数（回调），它接收用户请求，并 `yield` 出符合 AG-UI 规范的事件对象。
+- **标准事件模型**: 我们将直接使用 `ag-ui` SDK 中定义的 Pydantic 模型来表示各种事件，例如 `Message`, `Text`, `State`, `Tools`, `ToolOutput` 等。业务逻辑（如 `llm.astream`）的输出将被重构，以生成这些标准化的事件对象。
 
-class BaseBlock(BaseModel):
-    """所有数据块的基类"""
-    block_type: BlockType = Field(..., description="数据块类型")
-    block_id: str = Field(default_factory=lambda: f"blk_{uuid.uuid4().hex[:8]}", description="唯一块ID")
+### 2.2. 依赖
 
-class TextStreamBlock(BaseBlock):
-    """文本流数据块"""
-    block_type: Literal[BlockType.TEXT_STREAM] = BlockType.TEXT_STREAM
-    delta: str = Field(..., description="本次增量文本内容")
+需要在 `pyproject.toml` 中添加 `ag-ui` 作为核心依赖。
 
-class ErrorBlock(BaseBlock):
-    """错误数据块"""
-    block_type: Literal[BlockType.ERROR] = BlockType.ERROR
-    message: str = Field(..., description="错误信息")
-    code: str = Field("INTERNAL_SERVER_ERROR", description="错误码")
-
-# ... 可以定义更多如 ToolCallBlock, ToolOutputBlock 等
-
-class SSEEvent(BaseModel):
-    """SSE 事件的统一格式"""
-    event: Literal["message", "finish", "error"] = Field(..., description="事件类型")
-    data: Union[BaseBlock, None] = Field(..., description="事件携带的数据")
-    conversation_id: str = Field(..., description="当前会话ID")
-
+```toml
+[project.dependencies]
+# ... 其他依赖
+ag-ui = "^0.1.0" # 版本号待定
 ```
 
-### 2.2. SSE 适配器 (`adapter/sse_adapter.py`)
+## 3. 使用示例：在 FastAPI 中集成 AG-UI
 
-`SSEAdapter` 是核心组件，它将业务逻辑的输出流适配为 Web 框架可以理解的 SSE 响应流。
-
-```python
-# src/yai_nexus_agentkit/adapter/sse_adapter.py
-
-import json
-from typing import AsyncIterator, Any
-from sse_starlette.sse import EventSourceResponse, ServerSentEvent
-from .sse_models import TextStreamBlock, ErrorBlock, SSEEvent
-
-class SSEAdapter:
-    """
-    将任意异步数据流适配为 SSE (Server-Sent Events) 响应。
-    """
-
-    def __init__(
-        self,
-        content_stream: AsyncIterator[Any],
-        conversation_id: str,
-    ):
-        """
-        Args:
-            content_stream: 从业务逻辑（如LLM客户端）产生的数据流。
-                            期望流中的每个项目都是一个简单的字符串 (str)。
-            conversation_id: 当前会话的ID。
-        """
-        self._content_stream = content_stream
-        self._conversation_id = conversation_id
-
-    async def _stream_formatter(self) -> AsyncIterator[ServerSentEvent]:
-        """内部生成器，将内容流格式化为 SSE 事件。"""
-        try:
-            # 迭代来自业务逻辑的内容流
-            async for chunk in self._content_stream:
-                if isinstance(chunk, str):
-                    # 将字符串块包装成标准格式
-                    block = TextStreamBlock(delta=chunk)
-                    event = SSEEvent(
-                        event="message",
-                        data=block,
-                        conversation_id=self._conversation_id
-                    )
-                    yield ServerSentEvent(
-                        event="message",
-                        data=event.model_dump_json()
-                    )
-                # 在这里可以添加对其他类型 chunk 的处理
-                # else if isinstance(chunk, ToolCall): ...
-            
-            # 发送结束信号
-            finish_event = SSEEvent(
-                event="finish",
-                data=None,
-                conversation_id=self._conversation_id
-            )
-            yield ServerSentEvent(
-                event="finish",
-                data=finish_event.model_dump_json()
-            )
-
-        except Exception as e:
-            # 格式化并发送错误信号
-            error_block = ErrorBlock(message=str(e))
-            error_event = SSEEvent(
-                event="error",
-                data=error_block,
-                conversation_id=self._conversation_id
-            )
-            yield ServerSentEvent(
-                event="error",
-                data=error_event.model_dump_json()
-            )
-
-    def as_event_source_response(self) -> EventSourceResponse:
-        """
-        将适配器转换为 FastAPI/Starlette 兼容的 EventSourceResponse。
-        """
-        return EventSourceResponse(
-            content=self._stream_formatter(),
-            media_type="text/event-stream",
-            headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"},
-        )
-```
-
-## 3. 目录结构
-
-```
-src/yai_nexus_agentkit/
-└── adapter/
-    ├── __init__.py
-    ├── sse_adapter.py     # SSE 适配器核心逻辑
-    └── sse_models.py      # SSE 标准消息模型
-```
-
-## 4. 使用示例
-
-在 FastAPI 的路由处理函数中，使用 `SSEAdapter` 非常简洁。
+集成过程非常简洁。我们不再需要手动管理 SSE 响应，`ag-ui` SDK 会处理所有底层细节。
 
 ```python
 # examples/fast_api_app/api/chat.py
 
-from fastapi import APIRouter
+from fastapi import FastAPI
 from pydantic import BaseModel
-from yai_nexus_agentkit.adapter.sse_adapter import SSEAdapter
-from yai_nexus_agentkit.core.llm import BaseLLM
-# ... 其他依赖
+from typing import AsyncGenerator
 
-router = APIRouter()
+# 从 AG-UI SDK 导入所需的组件
+from ag_ui.server import run_in_thread, AgentUI
+from ag_ui.models import Message, Text, State, Node, Edge, Task, Error
+from yai_nexus_agentkit.core.llm import BaseLLM, get_llm_client # 假设的业务逻辑
 
-class ChatRequest(BaseModel):
-    prompt: str
-    conversation_id: str
+# 1. 初始化 FastAPI 应用
+app = FastAPI()
 
-@router.post("/chat/stream")
-async def stream_chat(request: ChatRequest, llm: BaseLLM = Depends(get_llm_client)):
+# 2. 定义 Agent 的核心处理逻辑
+# 这个函数将作为 Agent 的回调，处理用户请求并产生事件流
+async def my_agent_callback(task: Task, llm: BaseLLM) -> AsyncGenerator[Node, None]:
     """
-    处理流式聊天请求。
+    一个符合 AG-UI 规范的 Agent 回调函数。
+    它接收一个任务对象，并异步地产生一系列事件节点。
     """
-    # 1. 从业务逻辑层获取原始的内容流 (AsyncIterator[str])
-    content_stream = llm.astream(
-        prompt=request.prompt,
-        model="gpt-4o"
-    )
+    try:
+        # 产生一个 "正在执行" 的状态更新
+        yield State(status="running")
+        
+        # 从业务逻辑层获取原始的内容流 (这里需要进行适配)
+        # 假设 llm.astream 现在 yield str
+        content_stream = llm.astream(
+            prompt=task.query, # task.query 包含了用户的输入
+            model="gpt-4o"
+        )
+        
+        full_response = ""
+        # 产生 "思考" 事件
+        yield Text("正在思考...")
 
-    # 2. 使用适配器将其转换为 SSE 响应
-    adapter = SSEAdapter(
-        content_stream=content_stream,
-        conversation_id=request.conversation_id
-    )
+        # 将业务逻辑的输出流适配为 AG-UI 事件
+        async for chunk in content_stream:
+            if isinstance(chunk, str):
+                full_response += chunk
+                # 产生增量文本流事件
+                yield Text(content=chunk)
+        
+        # 产生一个包含最终结果的消息事件
+        yield Message(id=task.id, role="assistant", content=full_response)
+        
+        # 产生一个 "完成" 状态更新
+        yield State(status="done")
+
+    except Exception as e:
+        # 产生错误事件
+        yield Error(message=str(e), code="INTERNAL_SERVER_ERROR")
+        # 确保流结束时状态为 "error"
+        yield State(status="error")
+
+
+# 3. 创建 AgentUI 实例并注册到 FastAPI
+# a) 创建一个工厂函数来传递依赖（如 LLM客户端）
+def agent_factory():
+    llm_client = get_llm_client() # 获取 LLM 客户端实例
     
-    return adapter.as_event_source_response()
+    # 偏函数，将 llm_client 注入到回调中
+    from functools import partial
+    return partial(my_agent_callback, llm=llm_client)
+
+# b) 创建 AgentUI 实例
+# 这里的 "my-agent" 是 agent_id，前端可以通过它来选择要连接的 Agent
+agent_ui = AgentUI(agent_id="my-agent", agent_fn=agent_factory)
+
+# c) 将 AgentUI 的路由挂载到 FastAPI 应用中
+app.include_router(agent_ui.router)
+
+# 4. (可选) 在后台线程中运行 AgentUI 的消息处理
+# 这对于需要 Agent 主动向前端推送消息的场景很有用
+run_in_thread(agent_ui)
+
 ```
 
-## 5. 实施计划
+## 4. 实施计划（已更新）
 
-1.  在 `src/yai_nexus_agentkit/adapter/` 目录下创建 `sse_models.py` 并定义消息模型。
-2.  创建 `sse_adapter.py` 并实现 `SSEAdapter` 类。
-3.  在 `examples/fast_api_app` 中添加一个新的流式API端点 (`/chat/stream`) 来演示其用法。
-4.  确保 `SSEAdapter` 的错误处理和流结束逻辑健壮可靠。
-5.  编写前端示例代码（或文档）来解释如何消费这种标准的 SSE 流。 
+1.  **添加依赖**: 在 `pyproject.toml` 中添加 `ag-ui` 库。
+2.  **移除旧代码**: 从项目中删除所有自研的 `sse_adapter.py` 和 `sse_models.py` 相关的代码和设计。
+3.  **适配业务逻辑**:
+    -   审查核心的流式产出模块（如 `llm.astream`）。
+    -   将其返回值从简单的 `AsyncIterator[str]` 重构为 `AsyncIterator[Union[str, BaseBlock]]` 或直接输出 `ag_ui.models` 中的标准事件对象。这是为了能够生成更丰富的事件类型，如工具调用、状态变更等。
+4.  **集成 AG-UI 路由**:
+    -   在 `examples/fast_api_app` 中，按照上面的示例，创建并挂载 `AgentUI` 的路由。
+    -   实现 `agent_factory` 来处理依赖注入。
+5.  **前端对接**: 与前端开发人员同步，确保他们了解现在后端暴露的是一个标准的 AG-UI 端点，并可以利用其丰富的事件来进行 UI 开发。
+6.  **编写测试**: 为新的 `my_agent_callback` 逻辑编写单元测试，并为 FastAPI 端点编写集成测试。
+
+通过采纳 AG-UI SDK，我们不仅简化了实现，还站在了行业标准的前沿，为构建下一代 AI 应用打下了坚实的基础。 
