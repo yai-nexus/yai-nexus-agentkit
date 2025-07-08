@@ -46,8 +46,11 @@ This is a Python toolkit for building AI applications with multi-LLM support and
 
 **LLM Factory (`src/yai_nexus_agentkit/llm/`)**
 - `create_llm()` factory function creates LangChain-compatible LLM clients (in `factory.py`)
+- `LLMFactory` class manages multiple LLM instances (in `factory.py`)
 - `LLMProvider` enum defines supported providers (in `providers.py`)
 - `LLMConfig` model for configuration validation (in `config.py`)
+- Model enums for type-safe model selection (in `models.py`):
+  - `OpenAIModel`, `AnthropicModel`, `ZhipuModel`, `TongyiModel`, `OpenRouterModel`
 - Supports multiple providers: OpenAI, Anthropic, ZhipuAI, Tongyi, OpenRouter
 - Configuration-driven approach using JSON config files
 - Environment variable substitution for API keys
@@ -59,6 +62,7 @@ This is a Python toolkit for building AI applications with multi-LLM support and
 
 **Core Abstractions (`src/yai_nexus_agentkit/core/`)**
 - `BaseCheckpoint`: Abstract interface for state persistence
+- `BusinessLLM`: Business layer LLM wrapper with simplified interfaces
 - `embedding.py`: Embedding functionality
 - `repository.py`: Repository pattern abstractions
 
@@ -104,6 +108,48 @@ Required environment variables depend on which LLM providers you use:
 ## Testing
 
 The project uses pytest with configuration in `pyproject.toml`. Python path includes both root and `src` directories.
+
+## Usage Examples
+
+### Basic LLM Usage
+```python
+from yai_nexus_agentkit import create_llm, OpenAIModel
+
+# Create LLM with model enum (type-safe)
+config = {
+    "provider": "openai",
+    "model": OpenAIModel.GPT_4O.value,
+    "api_key": "sk-..."
+}
+llm = create_llm(config)
+```
+
+### Multi-LLM Management
+```python
+from yai_nexus_agentkit import LLMFactory, LLMProvider
+
+configs = [
+    {"provider": "openai", "model": "gpt-4o", "api_key": "sk-..."},
+    {"provider": "openrouter", "model": "google/gemini-pro", "api_key": "sk-or-...", "base_url": "https://openrouter.ai/api/v1"},
+]
+
+factory = LLMFactory(configs)
+openai_client = factory.get_client(LLMProvider.OPENAI)
+openrouter_client = factory.get_client(LLMProvider.OPENROUTER)
+```
+
+### Business Layer Usage
+```python
+from yai_nexus_agentkit.core.llm import BusinessLLM
+
+business_llm = BusinessLLM(llm)
+response = await business_llm.chat(
+    prompt="Explain quantum computing",
+    system_prompt="You are a science educator"
+)
+```
+
+Run `python examples/llm_usage_demo.py` for a complete demonstration.
 
 ## Legacy Code
 

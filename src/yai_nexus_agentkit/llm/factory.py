@@ -99,3 +99,76 @@ def create_llm(config: Dict[str, Any]) -> BaseChatModel:
     else:
         # 这个分支理论上不会被达到，因为枚举已经做了检查
         raise ValueError(f"提供商 '{provider.value}' 的实现尚未添加。")
+
+
+class LLMFactory:
+    """
+    LLM 工厂类，管理多个 LLM 实例。
+
+    这是一个可选的增强，适合需要同时使用多个 LLM 的场景。
+    """
+
+    def __init__(self, configs: list[dict[str, Any]]):
+        """
+        初始化工厂，从配置列表创建多个 LLM 实例。
+
+        Args:
+            configs: LLM 配置列表，每个配置必须包含 'provider' 字段
+        """
+        from langchain_core.language_models import BaseChatModel
+        from .config import LLMConfig
+
+        self._clients: dict[str, BaseChatModel] = {}
+
+        for config_dict in configs:
+            # 验证配置
+            config = LLMConfig(**config_dict)
+
+            # 创建 LLM 实例
+            client = create_llm(config_dict)
+
+            # 使用 provider 作为键存储
+            self._clients[config.provider.value] = client
+
+    def get_client(self, provider: LLMProvider) -> "BaseChatModel":
+        """
+        获取指定提供商的 LLM 客户端。
+
+        Args:
+            provider: 提供商枚举
+
+        Returns:
+            对应的 LLM 客户端
+
+        Raises:
+            ValueError: 如果未找到指定提供商的客户端
+        """
+        from langchain_core.language_models import BaseChatModel
+
+        client = self._clients.get(provider.value)
+        if not client:
+            available = list(self._clients.keys())
+            raise ValueError(f"未找到提供商 '{provider.value}' 的客户端。" f"可用的提供商: {available}")
+        return client
+
+    def list_providers(self) -> list[str]:
+        """返回所有可用的提供商列表。"""
+        return list(self._clients.keys())
+
+    def get_client_by_name(self, provider_name: str) -> "BaseChatModel":
+        """
+        通过提供商名称字符串获取客户端。
+
+        Args:
+            provider_name: 提供商名称字符串
+
+        Returns:
+            对应的 LLM 客户端
+        """
+        from langchain_core.language_models import BaseChatModel
+
+        client = self._clients.get(provider_name)
+        if not client:
+            available = list(self._clients.keys())
+            raise ValueError(f"未找到提供商 '{provider_name}' 的客户端。" f"可用的提供商: {available}")
+        return client

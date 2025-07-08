@@ -9,7 +9,34 @@
 from langchain_core.language_models import BaseChatModel
 
 from .config import LLMConfig
-from .factory import create_llm
+from .factory import create_llm, LLMFactory
 from .providers import LLMProvider
+from .models import (
+    OpenAIModel,
+    AnthropicModel,
+    ZhipuModel,
+    TongyiModel,
+    OpenRouterModel,
+    get_model_enum,
+    get_default_model,
+)
 
-__all__ = ["create_llm", "LLMProvider", "LLMConfig", "BaseChatModel"]
+__all__ = [
+    # 核心工厂功能
+    "create_llm",
+    "LLMFactory",
+    # 配置和枚举
+    "LLMProvider",
+    "LLMConfig",
+    # 模型枚举
+    "OpenAIModel",
+    "AnthropicModel",
+    "ZhipuModel",
+    "TongyiModel",
+    "OpenRouterModel",
+    # 工具函数
+    "get_model_enum",
+    "get_default_model",
+    # LangChain 基础类
+    "BaseChatModel",
+]
