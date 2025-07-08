@@ -2,14 +2,14 @@
 """
 该模块提供了基于 LangChain 的 LLM（大型语言模型）客户端的创建和管理功能。
 
-核心功能是 `create_llm` 工厂函数，它能够根据提供的配置动态地实例化
+核心功能是 `LLMFactory` 类，它能够根据提供的配置动态地实例化和管理
 不同提供商的 LLM 客户端，如 OpenAI, ZhipuAI 等。
 """
 
 from langchain_core.language_models import BaseChatModel
 
 from .config import LLMConfig
-from .factory import create_llm, LLMFactory
+from .factory import LLMFactory
 from .providers import LLMProvider
 from .models import (
     OpenAIModel,
@@ -23,7 +23,6 @@ from .models import (
 
 __all__ = [
     # 核心工厂功能
-    "create_llm",
     "LLMFactory",
     # 配置和枚举
     "LLMProvider",

@@ -4,7 +4,6 @@ yai-nexus-agentkit: 一个灵活、可扩展的智能体开发套件。
 """
 
 from .llm import (
-    create_llm,
     LLMFactory,
     BaseChatModel,
     LLMConfig,
@@ -18,7 +17,6 @@ from .llm import (
 
 __all__ = [
     # LLM 核心功能
-    "create_llm",
     "LLMFactory",
     "BaseChatModel",
     # 配置和提供商
