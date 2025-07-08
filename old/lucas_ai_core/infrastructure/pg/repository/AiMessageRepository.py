@@ -1,6 +1,5 @@
 from typing import List, Optional, Dict, Any
 
-from tortoise.expressions import Q
 
 from ..domain.saved_pg_message import AiMessageBO
 from ..models.ai_message import AiMessage
@@ -26,16 +25,10 @@ class AiMessageRepository:
 
     @staticmethod
     async def get_by_id(conversation_id: str) -> List[AiMessage]:
-        return (
-            await AiMessage.filter(conversation_id=conversation_id)
-            .all()
-            .order_by("created_at")
-        )
+        return await AiMessage.filter(conversation_id=conversation_id).all().order_by("created_at")
 
     @staticmethod
-    async def get_by_id_prev(
-        conversation_id: str, id: Optional[str] = None, page_size: int = 10
-    ) -> Dict[str, Any]:
+    async def get_by_id_prev(conversation_id: str, id: Optional[str] = None, page_size: int = 10) -> Dict[str, Any]:
         """
         通过会话ID查询消息列表，支持基于ID的分页
         Args:
@@ -49,9 +42,7 @@ class AiMessageRepository:
             - next_id: 下一页的游标ID
             - prev_id: 上一页的游标ID
         """
-        base_query = AiMessage.filter(conversation_id=conversation_id).order_by(
-            "-id"
-        )  # 改为降序，先显示最新消息
+        base_query = AiMessage.filter(conversation_id=conversation_id).order_by("-id")  # 改为降序，先显示最新消息
 
         if id:
             items = await base_query.filter(id__lt=id).limit(page_size + 1)
@@ -76,11 +67,7 @@ class AiMessageRepository:
     async def get_last_message_by_conversation_id(
         conversation_id: str,
     ) -> Optional[AiMessage]:
-        return (
-            await AiMessage.filter(conversation_id=conversation_id)
-            .order_by("created_at")
-            .last()
-        )
+        return await AiMessage.filter(conversation_id=conversation_id).order_by("created_at").last()
 
     @staticmethod
     async def get_by_biz_key(biz_key: str) -> Optional[AiMessage]:

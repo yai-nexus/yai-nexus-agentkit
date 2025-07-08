@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 from lucas_common_components.nacos.annotate.config_annotate import nacos_config
 from lucas_common_components.nacos.model.base_config import LucasBaseConfig

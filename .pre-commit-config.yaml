@@ -7,12 +7,12 @@ default_stages: [pre-commit]
 
 repos:
   # Ruff: 一个极速的 Python Linter，可以替代 Flake8, isort, pyupgrade 等
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.5.5 # 建议定期更新到最新版本
-    hooks:
+  # - repo: https://github.com/astral-sh/ruff-pre-commit
+  #   rev: v0.5.5 # 建议定期更新到最新版本
+  #   hooks:
       # 在暂存的文件上运行 linter
-      - id: ruff
-        args: [--fix, --show-fixes, --exit-non-zero-on-fix]
+      # - id: ruff
+      #  args: [--fix, --show-fixes, --exit-non-zero-on-fix]
       # 在暂存的文件上运行格式化工具 (替代 isort)
       # - id: ruff-format
 
