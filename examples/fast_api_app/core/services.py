@@ -3,6 +3,11 @@
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage
+from typing import List, Optional
+import uuid
+
+from yai_nexus_agentkit.core.repository import BaseRepository
+from yai_nexus_agentkit.persistence.models import AgentConversation
 
 
 class ChatService:
@@ -39,3 +44,105 @@ class ChatService:
 
         # 返回消息内容
         return ai_message.content
+
+
+class ConversationService:
+    """
+    对话服务，封装了对话的 CRUD 逻辑。
+    """
+
+    def __init__(self, repo: BaseRepository[AgentConversation]):
+        """
+        初始化对话服务。
+
+        Args:
+            repo: 对话仓储实例。
+        """
+        self._repo = repo
+
+    async def get_conversation(self, convo_id: str) -> Optional[AgentConversation]:
+        """
+        获取对话。
+
+        Args:
+            convo_id: 对话 ID
+
+        Returns:
+            对话实例或 None
+        """
+        return await self._repo.get(convo_id)
+    
+    async def create_conversation(self, title: str = None, metadata: dict = None) -> AgentConversation:
+        """
+        创建对话。
+
+        Args:
+            title: 对话标题
+            metadata: 元数据
+
+        Returns:
+            已创建的对话实例
+        """
+        conversation = AgentConversation(
+            id=uuid.uuid4(),
+            title=title,
+            metadata_=metadata
+        )
+        return await self._repo.add(conversation)
+    
+    async def list_conversations(self, limit: int = 100, offset: int = 0) -> List[AgentConversation]:
+        """
+        列出对话。
+
+        Args:
+            limit: 最大返回数量
+            offset: 跳过数量
+
+        Returns:
+            对话列表
+        """
+        return await self._repo.list(limit=limit, offset=offset)
+    
+    async def update_conversation(self, convo_id: str, title: str = None, metadata: dict = None) -> Optional[AgentConversation]:
+        """
+        更新对话。
+
+        Args:
+            convo_id: 对话 ID
+            title: 对话标题
+            metadata: 元数据
+
+        Returns:
+            已更新的对话实例或 None
+        """
+        conversation = await self._repo.get(convo_id)
+        if not conversation:
+            return None
+        
+        if title is not None:
+            conversation.title = title
+        if metadata is not None:
+            conversation.metadata_ = metadata
+        
+        return await self._repo.update(conversation)
+    
+    async def delete_conversation(self, convo_id: str) -> bool:
+        """
+        删除对话。
+
+        Args:
+            convo_id: 对话 ID
+
+        Returns:
+            删除成功返回 True，否则返回 False
+        """
+        return await self._repo.delete(convo_id)
+    
+    async def count_conversations(self) -> int:
+        """
+        统计对话数量。
+
+        Returns:
+            对话数量
+        """
+        return await self._repo.count()

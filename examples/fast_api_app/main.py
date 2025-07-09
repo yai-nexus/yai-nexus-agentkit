@@ -10,14 +10,22 @@ from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from tortoise import Tortoise
 
 # --- 依赖项导入 ---
 from yai_nexus_configuration import NexusConfigManager
 
-from .api import chat
+from .api import chat, conversations
 from .configs import AllLLMConfigs
-from .core.services import ChatService
+from .core.services import ChatService, ConversationService
 from yai_nexus_agentkit.llm import create_llm
+from yai_nexus_agentkit.persistence import (
+    DatabaseConfig,
+    TORTOISE_ORM_CONFIG_TEMPLATE,
+    TortoiseRepository,
+    PostgresCheckpoint,
+    AgentConversation,
+)
 
 
 # --- 依赖注入容器 ---
@@ -28,6 +36,9 @@ class AppContainer:
     """
 
     chat_service: ChatService
+    conversation_service: ConversationService
+    db_config: DatabaseConfig
+    checkpoint: PostgresCheckpoint
 
 
 # --- FastAPI 应用生命周期管理 ---
@@ -77,26 +88,64 @@ async def lifespan(app: FastAPI):
 
     logging.info(f"正在使用模型: {selected_llm_config.provider}/{selected_llm_config.model}")
 
-    # 4. 创建核心服务
+    # 4. 初始化数据库配置
+    logging.info("初始化数据库配置...")
+    db_config = DatabaseConfig.from_env()
+    logging.info(f"数据库配置已加载，URL: {db_config.db_url[:20]}...")
+
+    # 5. 初始化数据库连接
+    logging.info("初始化数据库连接...")
+    tortoise_config = TORTOISE_ORM_CONFIG_TEMPLATE.copy()
+    tortoise_config["connections"]["default"] = db_config.db_url
+    
+    await Tortoise.init(config=tortoise_config)
+    if db_config.generate_schemas:
+        await Tortoise.generate_schemas()
+    logging.info("数据库连接已初始化。")
+
+    # 6. 初始化 Checkpoint
+    logging.info("初始化 Checkpoint...")
+    checkpoint = PostgresCheckpoint(db_config)
+    await checkpoint.setup()
+    logging.info("Checkpoint 已初始化。")
+
+    # 7. 创建核心服务
     logging.info("创建核心服务...")
     llm_client = create_llm(selected_llm_config.model_dump())
     chat_service = ChatService(llm=llm_client)
+    
+    # 创建对话服务
+    conversation_repository = TortoiseRepository(model_cls=AgentConversation)
+    conversation_service = ConversationService(repo=conversation_repository)
     logging.info("核心服务已创建。")
 
-    # 5. 创建并赋值全局的依赖注入容器
+    # 8. 创建并赋值全局的依赖注入容器
     global container
     container = AppContainer()
     container.chat_service = chat_service
+    container.conversation_service = conversation_service
+    container.db_config = db_config
+    container.checkpoint = checkpoint
     logging.info("依赖注入容器已创建并填充。")
 
-    # 5. 加载 API 路由
+    # 9. 加载 API 路由
     logging.info("API 路由已加载。")
     app.include_router(chat.router)
+    app.include_router(conversations.router)
 
     logging.info("应用启动完成。")
     yield
     # 在应用关闭时执行
     logging.info("应用开始关闭...")
+    
+    # 清理 Checkpoint 资源
+    logging.info("清理 Checkpoint 资源...")
+    await checkpoint.cleanup()
+    
+    # 关闭数据库连接
+    logging.info("关闭数据库连接...")
+    await Tortoise.close_connections()
+    
     # 关闭配置管理器，释放资源（如 watcher 线程）
     manager.close()
     logging.info("应用关闭完成。")

@@ -20,7 +20,9 @@
       "Bash(echo $PATH)",
       "Bash(~/.local/pipx/venvs/pip/bin/ruff check .)",
       "Bash(~/.local/pipx/venvs/pip/bin/ruff check --fix .)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:langchain-ai.github.io)"
     ],
     "deny": []
   }
