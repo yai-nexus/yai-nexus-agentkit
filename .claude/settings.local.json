@@ -8,7 +8,8 @@
       "Bash(PRE_COMMIT_ALLOW_NO_CONFIG=1 git commit -m \"$(cat <<''EOF''\nupdate: 更新 Claude 设置配置权限\nEOF\n)\")",
       "Bash(black:*)",
       "Bash(ruff check:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

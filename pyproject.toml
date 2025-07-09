@@ -29,9 +29,7 @@ dependencies = [
     "pydantic>=2.0",
     "langchain",
     "langchain-core",
-    "langchain",
     "langgraph",
-    "pydantic",
     "yai-nexus-configuration>=0.1.1",
 ]
 
@@ -52,7 +50,12 @@ postgres = ["tortoise-orm", "psycopg"]
 redis = ["redis"]
 
 # Web Adapter Helpers
-fastapi = ["fastapi", "uvicorn", "pydantic-ai"]
+fastapi = [
+    "fastapi", 
+    "uvicorn", 
+    "ag-ui-protocol", # AG-UI 标准事件模型
+    "sse-starlette"   # FastAPI 的 SSE 传输支持
+]
 
 # Development and Quality Tools
 dev = [
@@ -62,14 +65,18 @@ dev = [
     "pytest-cov",
 ]
 
+# Persistence backends bundle
+persistence = [
+    "yai-nexus-agentkit[postgres]",
+    "yai-nexus-agentkit[redis]"
+]
+
 # A bundle for convenience
 all = [
     "yai-nexus-agentkit[openai]",
     "yai-nexus-agentkit[zhipu]",
     "yai-nexus-agentkit[anthropic]",
     "yai-nexus-agentkit[tongyi]",
-    "yai-nexus-agentkit[postgres]",
-    "yai-nexus-agentkit[redis]",
     "yai-nexus-agentkit[fastapi]",
     "yai-nexus-agentkit[dev]",
 ]
