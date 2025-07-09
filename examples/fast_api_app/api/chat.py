@@ -15,6 +15,11 @@ from yai_nexus_agentkit.llm import create_llm
 from sse_starlette.sse import EventSourceResponse
 from yai_nexus_agentkit.adapter.sse_advanced import Task
 
+# Langgraph 依赖
+from langgraph.graph import StateGraph, MessagesState
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage
+
 
 # --- 请求/响应模型 ---
 class ChatRequest(BaseModel):
@@ -30,6 +35,27 @@ class SimpleResponse(BaseModel):
 
 # --- 路由器 ---
 router = APIRouter(prefix="/chat")
+
+
+# --- Langgraph Agent 工厂函数 ---
+def create_langgraph_agent(llm_client):
+    """
+    创建 langgraph Agent 实例
+    使用 create_react_agent 创建一个简单的反应式 Agent
+    """
+    try:
+        # 创建一个简单的反应式 Agent
+        # 暂时不添加工具，只使用基础的 LLM 功能
+        tools = []  # 可以在这里添加工具
+        
+        # 使用 langgraph 的 create_react_agent 创建 Agent
+        agent = create_react_agent(llm_client, tools)
+        
+        return agent
+        
+    except Exception as e:
+        # 如果 langgraph Agent 创建失败，记录错误并重新抛出
+        raise RuntimeError(f"Failed to create langgraph agent: {str(e)}")
 
 
 # --- 1. 简单模式：直接 LLM 调用 ---
@@ -94,7 +120,7 @@ async def chat_stream_advanced(task: Task):
     适合：需要标准化事件模型和复杂交互的场景
     """
     try:
-        # 创建 LLM 客户端作为后备方案
+        # 创建 LLM 客户端
         llm_config = {
             "provider": "openai",
             "model": "gpt-4o-mini", 
@@ -102,8 +128,16 @@ async def chat_stream_advanced(task: Task):
         }
         llm_client = create_llm(llm_config)
         
-        # 创建 AG-UI 适配器（使用 LLM 作为后备）
-        adapter = AGUIAdapter(langgraph_agent=None, llm_client=llm_client)
+        # 创建真实的 langgraph Agent 实例
+        try:
+            langgraph_agent = create_langgraph_agent(llm_client)
+        except RuntimeError as agent_error:
+            # 如果 langgraph Agent 创建失败，降级到 LLM 后备方案
+            langgraph_agent = None
+            print(f"Warning: {agent_error}. Falling back to LLM client.")
+        
+        # 创建 AG-UI 适配器（使用真实的 langgraph Agent 或 LLM 后备）
+        adapter = AGUIAdapter(langgraph_agent=langgraph_agent, llm_client=llm_client)
         
         # 返回 AG-UI 兼容的 SSE 响应
         return EventSourceResponse(
