@@ -76,6 +76,19 @@ def _create_tongyi_client(config: Dict[str, Any]) -> BaseChatModel:
     return ChatTongyi(**config)
 
 
+def _create_doubao_client(config: Dict[str, Any]) -> BaseChatModel:
+    """创建豆包客户端。"""
+    try:
+        from langchain_openai import ChatOpenAI
+    except ImportError:
+        raise ImportError(
+            "使用豆包需要安装 langchain-openai 包。"
+            "请运行: pip install langchain-openai"
+        )
+    # 豆包使用 OpenAI 兼容的 API
+    return ChatOpenAI(**config)
+
+
 # ------------------------------------------------------------------------------
 #  提供商注册表 (Provider Registry)
 #  将提供商枚举映射到其对应的私有创建函数。
@@ -87,6 +100,7 @@ _PROVIDER_REGISTRY: Dict[LLMProvider, Callable[[Dict[str, Any]], BaseChatModel]]
     LLMProvider.ANTHROPIC: _create_anthropic_client,
     LLMProvider.OPENROUTER: _create_openrouter_client,
     LLMProvider.TONGYI: _create_tongyi_client,
+    LLMProvider.DOUBAO: _create_doubao_client,
 }
 
 

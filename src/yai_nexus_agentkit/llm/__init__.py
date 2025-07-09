@@ -9,13 +9,14 @@
 from langchain_core.language_models import BaseChatModel
 
 from .config import LLMConfig
-from .factory import LLMFactory
+from .factory import LLMFactory, create_llm
 from .providers import LLMProvider
 from .models import (
     OpenAIModel,
     AnthropicModel,
     ZhipuModel,
     TongyiModel,
+    DoubaoModel,
     OpenRouterModel,
     get_model_enum,
     get_default_model,
@@ -24,6 +25,7 @@ from .models import (
 __all__ = [
     # 核心工厂功能
     "LLMFactory",
+    "create_llm",
     # 配置和枚举
     "LLMProvider",
     "LLMConfig",
@@ -32,6 +34,7 @@ __all__ = [
     "AnthropicModel",
     "ZhipuModel",
     "TongyiModel",
+    "DoubaoModel",
     "OpenRouterModel",
     # 工具函数
     "get_model_enum",

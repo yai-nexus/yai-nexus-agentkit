@@ -256,7 +256,7 @@ sequenceDiagram
 
 ### 修改建议
 
-为了能将业务对话 (`agent_conversations`) 与其对应的 Agent 执行状态 (`threads`/`checkpoints`) 可靠地关联起来，**建议为 `agent_conversations` 表增加一个 `thread_id` 字段**。该字段应设置为索引以提高查询性能。
+为了能将业务对话 (`agent_conversations`) 与其对应的 Agent 执行状态 (`threads`/`checkpoints`) 可靠地关联起来，**建议为 `agent_conversations` 表增加一个 `checkpoint_thread_id` 字段**。该字段应设置为索引以提高查询性能。
 
 ### ER 图 (基于修改建议)
 
@@ -264,11 +264,11 @@ sequenceDiagram
 erDiagram
     agent_conversations {
         UUID id PK "主键"
+        UUID checkpoint_thread_id FK "逻辑外键, 索引"
         string title
         json metadata_ "元数据"
         datetime created_at
         datetime updated_at
-        UUID thread_id FK "逻辑外键"
     }
 
     agent_messages {
@@ -312,6 +312,6 @@ erDiagram
 
 3.  **关键的逻辑关联**:
     - 图中 `agent_conversations` 和 `threads` 之间的**虚线**是整个架构的核心关联点。
-    - `agent_conversations.thread_id` 字段存储了 `threads.thread_id` 的值。
+    - `agent_conversations.checkpoint_thread_id` 字段存储了 `threads.thread_id` 的值。
     - 这种关系是**逻辑上的**，在数据库层面没有设置强制的外键约束，以避免两个系统（我们的应用 vs LangGraph）的 schema 管理发生冲突。
-    - 通过这个 `thread_id`，我们就能从一个业务对话（`Conversation`）找到它所有对应的执行过程快照（`Checkpoints`），反之亦然。 
+    - 通过这个 `checkpoint_thread_id`，我们就能从一个业务对话（`Conversation`）找到它所有对应的执行过程快照（`Checkpoints`），反之亦然。 

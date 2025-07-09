@@ -27,6 +27,12 @@
     {
       "provider": "tongyi",
       "model": "qwen-plus"
+    },
+    {
+      "provider": "doubao",
+      "model": "doubao-pro-4k",
+      "api_key": "${DOUBAO_API_KEY}",
+      "base_url": "https://ark.cn-beijing.volces.com/api/v3"
     }
   ]
 } 

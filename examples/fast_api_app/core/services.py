@@ -85,6 +85,7 @@ class ConversationService:
         """
         conversation = AgentConversation(
             id=uuid.uuid4(),
+            checkpoint_thread_id=uuid.uuid4(),
             title=title,
             metadata_=metadata
         )

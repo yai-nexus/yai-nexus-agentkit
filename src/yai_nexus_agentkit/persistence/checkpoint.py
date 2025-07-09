@@ -59,15 +59,15 @@ class PostgresCheckpoint(BaseCheckpoint):
             await self.setup()
         
         try:
-            # 使用 AsyncPostgresSaver 的 alist 方法
-            # 注意：这里需要一个虚拟的 config，因为 alist 需要配置参数
-            # 但是为了获取所有的 thread_id，我们需要查询数据库
-            # 这里的实现可能需要直接访问数据库
+            from tortoise import Tortoise
             
-            # 由于 AsyncPostgresSaver 的 alist 方法需要特定的 thread_id
-            # 我们这里返回空列表并记录警告
-            logger.warning("list() method is not fully implemented due to AsyncPostgresSaver API limitations")
-            return []
+            # 使用 Tortoise ORM 直接查询数据库获取所有 thread_id
+            connection = Tortoise.get_connection("default")
+            result = await connection.execute_query('SELECT thread_id FROM "threads" LIMIT $1', [limit])
+            
+            # 提取 thread_id 列表
+            thread_ids = [str(row[0]) for row in result[1]]
+            return thread_ids
         except Exception as e:
             logger.error(f"Failed to list checkpoints: {e}")
             return []

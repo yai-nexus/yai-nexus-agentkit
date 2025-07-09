@@ -52,6 +52,7 @@ openai = ["langchain-openai>=0.1.0"]
 zhipu = ["langchain-community", "zhipuai"]
 anthropic = ["langchain-anthropic"]
 tongyi = ["langchain-community", "dashscope"]
+doubao = ["langchain-openai>=0.1.0"]
 
 # Checkpoint/Persistence Backends
 postgres = ["tortoise-orm", "psycopg"]
@@ -83,6 +84,7 @@ all = [
     "yai-nexus-agentkit[zhipu]",
     "yai-nexus-agentkit[anthropic]",
     "yai-nexus-agentkit[tongyi]",
+    "yai-nexus-agentkit[doubao]",
     "yai-nexus-agentkit[fastapi]",
     "yai-nexus-agentkit[dev]",
 ]

@@ -19,6 +19,7 @@ from yai_nexus_agentkit import (
     LLMProvider,
     OpenAIModel,
     OpenRouterModel,
+    DoubaoModel,
 )
 from langchain_core.messages import HumanMessage
 
@@ -57,6 +58,20 @@ async def demo_model_enums():
         llm = create_llm(config)
         response = await llm.ainvoke([HumanMessage(content="用中文回答：什么是人工智能？")])
         print(f"使用模型枚举的回复: {response.content[:100]}...")
+
+    # 使用豆包模型枚举 (测试 DOUBAO_SEED_1_6_MODEL)
+    if os.getenv("DOUBAO_API_KEY"):
+        config = {
+            "provider": LLMProvider.DOUBAO.value,
+            "model": DoubaoModel.DOUBAO_SEED_1_6_MODEL.value,  # "doubao-seed-1-6-250615"
+            "api_key": os.getenv("DOUBAO_API_KEY"),
+        }
+
+        llm = create_llm(config)
+        response = await llm.ainvoke([HumanMessage(content="你好！请用中文回答，什么是人工智能？")])
+        print(f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}")
+    else:
+        print("跳过豆包示例 (未设置 DOUBAO_API_KEY)")
 
     # 使用 OpenRouter 模型枚举
     if os.getenv("OPENROUTER_API_KEY"):
@@ -123,6 +138,7 @@ async def main():
     print("🚀 yai-nexus-agentkit LLM 功能演示")
     print("请确保设置了相应的 API 密钥环境变量:")
     print("- OPENAI_API_KEY (用于 OpenAI 示例)")
+    print("- DOUBAO_API_KEY (用于豆包示例)")
     print("- OPENROUTER_API_KEY (用于 OpenRouter 示例)")
     print()
 

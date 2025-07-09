@@ -38,6 +38,19 @@ class TongyiModel(str, Enum):
     QWEN_MAX = "qwen-max"
 
 
+class DoubaoModel(str, Enum):
+    """豆包（抖音）常用模型枚举。"""
+    
+    DOUBAO_SEED_1_6_MODEL="doubao-seed-1-6-250615"
+    DOUBAO_SEED_1_5_MODEL="doubao-1.5-thinking-pro-250415"
+    DOUBAO_PRO_4K = "doubao-pro-4k"
+    DOUBAO_PRO_32K = "doubao-pro-32k"
+    DOUBAO_PRO_128K = "doubao-pro-128k"
+    DOUBAO_LITE_4K = "doubao-lite-4k"
+    DOUBAO_LITE_32K = "doubao-lite-32k"
+    DOUBAO_LITE_128K = "doubao-lite-128k"
+
+
 class OpenRouterModel(str, Enum):
     """
     OpenRouter 常用模型枚举。
@@ -80,6 +93,7 @@ MODEL_MAPPING: Dict[str, Type[Enum]] = {
     "anthropic": AnthropicModel,
     "zhipu": ZhipuModel,
     "tongyi": TongyiModel,
+    "doubao": DoubaoModel,
     "openrouter": OpenRouterModel,
 }
 

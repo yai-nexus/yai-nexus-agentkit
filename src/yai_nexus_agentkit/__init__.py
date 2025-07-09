@@ -12,13 +12,16 @@ from .llm import (
     AnthropicModel,
     ZhipuModel,
     TongyiModel,
+    DoubaoModel,
     OpenRouterModel,
+    create_llm,
 )
 
 __all__ = [
     # LLM 核心功能
     "LLMFactory",
     "BaseChatModel",
+    "create_llm",
     # 配置和提供商
     "LLMConfig",
     "LLMProvider",
@@ -27,5 +30,6 @@ __all__ = [
     "AnthropicModel",
     "ZhipuModel",
     "TongyiModel",
+    "DoubaoModel",
     "OpenRouterModel",
 ]

@@ -12,3 +12,4 @@ class LLMProvider(str, Enum):
     ANTHROPIC = "anthropic"
     OPENROUTER = "openrouter"
     TONGYI = "tongyi"
+    DOUBAO = "doubao"
