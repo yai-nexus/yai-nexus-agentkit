@@ -40,7 +40,7 @@ Open your browser to `http://localhost:8000/docs` to explore the interactive API
                                                         │
                        ┌─────────────────┐    ┌─────────────────┐
                        │   LangGraph     │◄──►│   FastAPI App   │
-                       │   (Orchestration)│    │   (Web Layer)   │
+                       │  (Orchestration)│    │   (Web Layer)   │
                        └─────────────────┘    └─────────────────┘
                                 │
                        ┌─────────────────┐
