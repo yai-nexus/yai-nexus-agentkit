@@ -7,6 +7,8 @@ from typing import List, Optional
 import uuid
 
 from yai_nexus_agentkit.core.repository import BaseRepository
+from yai_nexus_agentkit.llm import LLMFactory
+from yai_nexus_agentkit.persistence import PostgresCheckpoint
 from yai_nexus_agentkit.persistence.models import AgentConversation
 
 
@@ -15,15 +17,20 @@ class ChatService:
     聊天服务，封装了核心的业务逻辑。
     """
 
-    def __init__(self, llm: BaseChatModel):
+    def __init__(self, llm_factory: LLMFactory, checkpoint_repo: PostgresCheckpoint):
         """
         初始化聊天服务。
 
         Args:
-            llm: 一个继承自 LangChain BaseChatModel 的语言模型客户端实例。
+            llm_factory: LLM 工厂实例
+            checkpoint_repo: Checkpoint 仓储实例
         """
-        # 服务依赖于 LangChain 的抽象基类，而不是任何具体的实现。
-        self._llm = llm
+        self._llm_factory = llm_factory
+        self._checkpoint_repo = checkpoint_repo
+        # For simplicity, get a default LLM client.
+        # In a real app, you might select one based on the conversation or request.
+        self._llm = self._llm_factory.get_llm_client("default_openai")
+
 
     async def get_reply(self, prompt: str) -> str:
         """

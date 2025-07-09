@@ -31,7 +31,7 @@ TORTOISE_ORM_CONFIG_TEMPLATE = {
     "connections": {"default": ""}, # 将被 db_url 填充
     "apps": {
         "models": {
-            "models": ["yai_nexus_agentkit.persistence.models", "aerich.models"],
+            "models": ["yai_nexus_agentkit.persistence.models"],
             "default_connection": "default",
         }
     },

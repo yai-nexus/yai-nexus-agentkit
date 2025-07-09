@@ -39,6 +39,10 @@ dependencies = [
     "uvicorn",
     "ag-ui-protocol",  # AG-UI 标准事件模型
     "sse-starlette",   # FastAPI 的 SSE 传输支持
+    # Langgraph Checkpoint Backends
+    "langgraph-checkpoint-postgres",
+    "psycopg[binary]", # Force binary version of psycopg
+    "asyncpg", # Tortoise ORM backend
 ]
 
 [project.urls]
@@ -55,21 +59,24 @@ tongyi = ["langchain-community", "dashscope"]
 doubao = ["langchain-openai>=0.1.0"]
 
 # Checkpoint/Persistence Backends
-postgres = ["tortoise-orm", "psycopg"]
+postgres = ["tortoise-orm", "aerich"]
 redis = ["redis"]
 
 # Web extensions (core web functionality now in default dependencies)
 fastapi = [
     "aiohttp",  # For advanced HTTP client needs
     "httpx",    # Modern HTTP client
+    "dependency-injector",
 ]
 
 # Development and Quality Tools
 dev = [
-    "black",
-    "ruff",
-    "pre-commit",
+    "pytest",
     "pytest-cov",
+    "pre-commit",
+    "ruff",
+    "black",
+    "aerich",
 ]
 
 # Persistence backends bundle
