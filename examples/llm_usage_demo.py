@@ -12,7 +12,6 @@ LLM 功能使用示例。
 
 import asyncio
 import os
-from typing import List
 
 from yai_nexus_agentkit import (
     create_llm,
@@ -21,7 +20,6 @@ from yai_nexus_agentkit import (
     OpenAIModel,
     OpenRouterModel,
 )
-from yai_nexus_agentkit.core.llm import BusinessLLM
 from langchain_core.messages import HumanMessage
 
 

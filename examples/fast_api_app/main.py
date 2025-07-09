@@ -14,7 +14,7 @@ from fastapi import FastAPI
 # --- 依赖项导入 ---
 from yai_nexus_configuration import NexusConfigManager
 
-from .api import chat_progressive
+from .api import chat
 from .configs import AllLLMConfigs
 from .core.services import ChatService
 from yai_nexus_agentkit.llm import create_llm
@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
 
     # 5. 加载 API 路由
     logging.info("API 路由已加载。")
-    app.include_router(chat_progressive.router)
+    app.include_router(chat.router)
 
     logging.info("应用启动完成。")
     yield

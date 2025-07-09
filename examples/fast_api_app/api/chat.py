@@ -4,12 +4,11 @@
 展示简单、中级、高级三个层次的流式响应 API
 """
 
-import json
-from typing import AsyncGenerator, Optional
+from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from yai_nexus_agentkit.adapter import BasicSSEAdapter, AGUIAdapter, LanggraphAgentMock
+from yai_nexus_agentkit.adapter import BasicSSEAdapter, AGUIAdapter
 from yai_nexus_agentkit.llm import create_llm
 
 # 核心依赖 - 直接导入
@@ -95,11 +94,16 @@ async def chat_stream_advanced(task: Task):
     适合：需要标准化事件模型和复杂交互的场景
     """
     try:
-        # 创建模拟的 langgraph agent（实际使用时应该从依赖注入获取）
-        mock_agent = LanggraphAgentMock()
+        # 创建 LLM 客户端作为后备方案
+        llm_config = {
+            "provider": "openai",
+            "model": "gpt-4o-mini", 
+            "api_key": "your-api-key"
+        }
+        llm_client = create_llm(llm_config)
         
-        # 创建 AG-UI 适配器
-        adapter = AGUIAdapter(mock_agent)
+        # 创建 AG-UI 适配器（使用 LLM 作为后备）
+        adapter = AGUIAdapter(langgraph_agent=None, llm_client=llm_client)
         
         # 返回 AG-UI 兼容的 SSE 响应
         return EventSourceResponse(
@@ -118,6 +122,7 @@ async def chat_stream_with_heartbeat(request: ChatRequest):
     """
     带心跳的中级模式
     适合：需要长连接保持的场景
+    使用 EventSourceResponse 的 ping 参数来处理心跳
     """
     try:
         llm_config = {
@@ -130,7 +135,8 @@ async def chat_stream_with_heartbeat(request: ChatRequest):
         adapter = BasicSSEAdapter(llm)
         
         return EventSourceResponse(
-            adapter.stream_with_heartbeat(request.message, heartbeat_interval=30),
+            adapter.stream_response(request.message),
+            ping=30,  # 使用 EventSourceResponse 的内置心跳功能
             media_type="text/event-stream"
         )
         

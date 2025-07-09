@@ -5,16 +5,12 @@
 """
 
 import json
-import asyncio
-from typing import AsyncGenerator, Dict, Any, Optional, Union
+from typing import AsyncGenerator
 from pydantic import BaseModel
 
 # 核心依赖 - 直接导入
 from ag_ui.core.events import (
     TextMessageChunkEvent,
-    TextMessageContentEvent, 
-    Message,
-    State,
     StateDeltaEvent,
     RunStartedEvent,
     RunFinishedEvent,
@@ -34,8 +30,9 @@ class AGUIAdapter:
     将 langgraph 事件流转换为 AG-UI 标准事件流
     """
     
-    def __init__(self, langgraph_agent=None):
+    def __init__(self, langgraph_agent=None, llm_client=None):
         self.langgraph_agent = langgraph_agent
+        self.llm_client = llm_client
     
     async def event_stream_adapter(self, task: Task) -> AsyncGenerator[str, None]:
         """
@@ -55,6 +52,8 @@ class AGUIAdapter:
             
             if self.langgraph_agent is None:
                 # 如果没有 langgraph agent，使用简单的 LLM 流式响应
+                if self.llm_client is None:
+                    raise ValueError("AGUIAdapter requires either langgraph_agent or llm_client")
                 async for event in self._simple_llm_stream(task):
                     yield event
                 return
@@ -113,20 +112,40 @@ class AGUIAdapter:
     async def _simple_llm_stream(self, task: Task) -> AsyncGenerator[str, None]:
         """
         简单的 LLM 流式响应（当没有 langgraph 时的后备方案）
+        使用 LLM 客户端进行流式响应
         """
-        # 这里需要访问 LLM 客户端，实际实现中需要通过依赖注入
-        text_chunk = TextMessageChunkEvent(
-            delta="正在处理您的请求...",
-            snapshot="正在处理您的请求..."
-        )
-        yield json.dumps(text_chunk.model_dump())
-        await asyncio.sleep(0.1)  # 模拟处理时间
-        
-        text_chunk = TextMessageChunkEvent(
-            delta="处理完成",
-            snapshot="正在处理您的请求...处理完成"
-        )
-        yield json.dumps(text_chunk.model_dump())
+        try:
+            # 使用 LLM 客户端的流式响应
+            accumulated_response = ""
+            async for chunk in self.llm_client.astream(task.query):
+                if hasattr(chunk, 'content') and chunk.content:
+                    accumulated_response += chunk.content
+                    text_chunk = TextMessageChunkEvent(
+                        delta=chunk.content,
+                        snapshot=accumulated_response
+                    )
+                    yield json.dumps(text_chunk.model_dump())
+                    
+        except Exception:
+            # 如果流式响应失败，尝试同步调用
+            try:
+                response = self.llm_client.invoke(task.query)
+                content = response.content if hasattr(response, 'content') else str(response)
+                
+                text_chunk = TextMessageChunkEvent(
+                    delta=content,
+                    snapshot=content
+                )
+                yield json.dumps(text_chunk.model_dump())
+                
+            except Exception as sync_e:
+                # 如果同步调用也失败，返回错误信息
+                error_msg = f"LLM调用失败: {str(sync_e)}"
+                text_chunk = TextMessageChunkEvent(
+                    delta=error_msg,
+                    snapshot=error_msg
+                )
+                yield json.dumps(text_chunk.model_dump())
     
     def create_fastapi_endpoint(self):
         """
@@ -149,30 +168,3 @@ class AGUIAdapter:
         return chat_stream_endpoint
 
 
-class LanggraphAgentMock:
-    """
-    模拟的 langgraph Agent，用于测试和开发
-    """
-    
-    async def astream_events(self, input_data: Dict[str, Any], version: str = "v1"):
-        """模拟 langgraph 的 astream_events 方法"""
-        # 模拟开始事件
-        yield {
-            "event": "on_chain_start",
-            "data": {"input": input_data}
-        }
-        
-        # 模拟 LLM 流式响应
-        response_parts = ["这是", "一个", "模拟的", "响应"]
-        for part in response_parts:
-            yield {
-                "event": "on_chat_model_stream",
-                "data": {"chunk": type('obj', (object,), {'content': part})()}
-            }
-            await asyncio.sleep(0.1)  # 模拟延迟
-        
-        # 模拟结束事件
-        yield {
-            "event": "on_chain_end",
-            "data": {"output": "响应完成"}
-        }

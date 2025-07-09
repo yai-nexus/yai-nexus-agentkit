@@ -14,7 +14,13 @@
       "Bash(pip show:*)",
       "Bash(pip search:*)",
       "Bash(ls:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Bash(mv:*)",
+      "Bash(~/.local/pipx/venvs/pip/bin/ruff --version)",
+      "Bash(echo $PATH)",
+      "Bash(~/.local/pipx/venvs/pip/bin/ruff check .)",
+      "Bash(~/.local/pipx/venvs/pip/bin/ruff check --fix .)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

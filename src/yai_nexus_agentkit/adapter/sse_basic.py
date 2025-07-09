@@ -4,8 +4,6 @@
 提供简单的 Server-Sent Events 流式响应，不依赖复杂的协议
 """
 
-import json
-import asyncio
 from typing import AsyncGenerator, Dict, Any, Optional
 from pydantic import BaseModel
 
@@ -73,41 +71,3 @@ class BasicSSEAdapter:
             )
             yield f"event: {error_event.event}\ndata: {error_event.model_dump_json()}\n\n"
     
-    async def stream_with_heartbeat(self, message: str, heartbeat_interval: int = 30) -> AsyncGenerator[str, None]:
-        """
-        带心跳的流式响应
-        
-        Args:
-            message: 用户消息
-            heartbeat_interval: 心跳间隔（秒）
-        """
-        heartbeat_task = None
-        
-        try:
-            # 启动心跳任务
-            heartbeat_task = asyncio.create_task(self._heartbeat_loop(heartbeat_interval))
-            
-            # 创建响应流和心跳流的组合
-            response_stream = self.stream_response(message)
-            
-            async for event in response_stream:
-                yield event
-                
-        finally:
-            # 清理心跳任务
-            if heartbeat_task:
-                heartbeat_task.cancel()
-                try:
-                    await heartbeat_task
-                except asyncio.CancelledError:
-                    pass
-    
-    async def _heartbeat_loop(self, interval: int):
-        """心跳循环"""
-        while True:
-            await asyncio.sleep(interval)
-            heartbeat_event = SSEEvent(
-                event="heartbeat",
-                data={"timestamp": asyncio.get_event_loop().time()}
-            )
-            # 注意：这里需要与主流同步，实际实现中需要更复杂的协调机制

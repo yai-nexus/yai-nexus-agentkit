@@ -7,7 +7,6 @@
 import asyncio
 import aiohttp
 import json
-from typing import AsyncGenerator
 
 
 class ChatClient:
