@@ -14,9 +14,9 @@ import asyncio
 import os
 
 from yai_nexus_agentkit import (
-    create_llm,
     LLMFactory,
     LLMProvider,
+    LLMConfig,
     OpenAIModel,
     OpenRouterModel,
     DoubaoModel,
@@ -25,22 +25,47 @@ from langchain_core.messages import HumanMessage
 
 
 async def demo_basic_usage():
-    """演示基础的 create_llm() 使用。"""
-    print("=== 1. 基础 create_llm() 使用 ===")
+    """演示基础的 LLMFactory 使用。"""
+    print("=== 1. 基础 LLMFactory 使用 ===")
 
+    factory = LLMFactory()
+    
     # 使用 OpenAI (需要设置 OPENAI_API_KEY 环境变量)
     if os.getenv("OPENAI_API_KEY"):
-        config = {
-            "provider": "openai",
-            "model": "gpt-3.5-turbo",
-            "api_key": os.getenv("OPENAI_API_KEY"),
-        }
-
-        llm = create_llm(config)
+        config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model=OpenAIModel.GPT_3_5_TURBO.value,
+            api_key=os.getenv("OPENAI_API_KEY")
+        )
+        
+        factory.register_config("openai-basic", config)
+        llm = factory.get_llm_client("openai-basic")
         response = await llm.ainvoke([HumanMessage(content="Hello, what's 2+2?")])
         print(f"OpenAI 回复: {response.content}")
     else:
         print("跳过 OpenAI 示例 (未设置 OPENAI_API_KEY)")
+
+
+async def demo_doubao_usage():
+    """演示豆包模型 DOUBAO_SEED_1_6_MODEL 的使用。"""
+    print("\n=== 2. 豆包模型 DOUBAO_SEED_1_6_MODEL 测试 ===")
+    
+    factory = LLMFactory()
+    
+    # 使用豆包模型枚举 (测试 DOUBAO_SEED_1_6_MODEL)
+    if os.getenv("DOUBAO_API_KEY"):
+        config = LLMConfig(
+            provider=LLMProvider.DOUBAO,
+            model=DoubaoModel.DOUBAO_SEED_1_6_MODEL.value,
+            api_key=os.getenv("DOUBAO_API_KEY")
+        )
+        
+        factory.register_config("doubao-seed", config)
+        llm = factory.get_llm_client("doubao-seed")
+        response = await llm.ainvoke([HumanMessage(content="你好！请用中文回答，什么是人工智能？")])
+        print(f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}")
+    else:
+        print("跳过豆包示例 (未设置 DOUBAO_API_KEY)")
 
 
 async def demo_model_enums():
@@ -144,6 +169,7 @@ async def main():
 
     try:
         await demo_basic_usage()
+        await demo_doubao_usage()
         await demo_model_enums()
         await demo_llm_factory()
 

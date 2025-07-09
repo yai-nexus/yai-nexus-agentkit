@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from yai_nexus_agentkit.adapter import BasicSSEAdapter, AGUIAdapter
-from yai_nexus_agentkit.llm import create_llm
+from yai_nexus_agentkit import LLMFactory, LLMProvider, LLMConfig
 
 # 核心依赖 - 直接导入
 from sse_starlette.sse import EventSourceResponse
@@ -68,12 +68,14 @@ async def chat_simple(request: ChatRequest):
     try:
         # 这里应该从依赖注入获取 LLM 客户端
         # 暂时使用硬编码配置做演示
-        llm_config = {
-            "provider": "openai",
-            "model": "gpt-4o-mini",
-            "api_key": "your-api-key"  # 实际使用时从环境变量获取
-        }
-        llm = create_llm(llm_config)
+        factory = LLMFactory()
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o-mini",
+            api_key="your-api-key"  # 实际使用时从环境变量获取
+        )
+        factory.register_config("simple-chat", llm_config)
+        llm = factory.get_llm_client("simple-chat")
         
         # 同步调用 LLM
         response = llm.invoke(request.message)
@@ -92,12 +94,14 @@ async def chat_stream_basic(request: ChatRequest):
     """
     try:
         # 创建 LLM 客户端
-        llm_config = {
-            "provider": "openai",
-            "model": "gpt-4o-mini",
-            "api_key": "your-api-key"
-        }
-        llm = create_llm(llm_config)
+        factory = LLMFactory()
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o-mini",
+            api_key="your-api-key"
+        )
+        factory.register_config("stream-basic", llm_config)
+        llm = factory.get_llm_client("stream-basic")
         
         # 创建基础 SSE 适配器
         adapter = BasicSSEAdapter(llm)
@@ -121,12 +125,14 @@ async def chat_stream_advanced(task: Task):
     """
     try:
         # 创建 LLM 客户端
-        llm_config = {
-            "provider": "openai",
-            "model": "gpt-4o-mini", 
-            "api_key": "your-api-key"
-        }
-        llm_client = create_llm(llm_config)
+        factory = LLMFactory()
+        llm_config = LLMConfig(
+            provider=LLMProvider.OPENAI,
+            model="gpt-4o-mini",
+            api_key="your-api-key"
+        )
+        factory.register_config("stream-advanced", llm_config)
+        llm_client = factory.get_llm_client("stream-advanced")
         
         # 创建真实的 langgraph Agent 实例
         try:

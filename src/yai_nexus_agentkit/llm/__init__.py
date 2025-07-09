@@ -9,7 +9,7 @@
 from langchain_core.language_models import BaseChatModel
 
 from .config import LLMConfig
-from .factory import LLMFactory, create_llm
+from .factory import LLMFactory, llm_factory
 from .providers import LLMProvider
 from .models import (
     OpenAIModel,
@@ -25,7 +25,7 @@ from .models import (
 __all__ = [
     # 核心工厂功能
     "LLMFactory",
-    "create_llm",
+    "llm_factory",  # 全局单例实例
     # 配置和枚举
     "LLMProvider",
     "LLMConfig",
