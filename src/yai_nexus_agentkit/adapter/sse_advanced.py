@@ -9,32 +9,23 @@ import asyncio
 from typing import AsyncGenerator, Dict, Any, Optional, Union
 from pydantic import BaseModel
 
-# 这些导入在安装 ag-ui-protocol 后会可用
-try:
-    from ag_ui.core.events import Text, Message, State, Task, Error
-    AG_UI_AVAILABLE = True
-except ImportError:
-    AG_UI_AVAILABLE = False
-    # 创建模拟的类型定义
-    class Text(BaseModel):
-        content: str
-    
-    class Message(BaseModel):
-        id: str
-        role: str
-        content: str
-    
-    class State(BaseModel):
-        status: str
-    
-    class Task(BaseModel):
-        id: str
-        query: str
-    
-    class Error(BaseModel):
-        code: str
-        message: str
-        details: Optional[str] = None
+# 核心依赖 - 直接导入
+from ag_ui.core.events import (
+    TextMessageChunkEvent,
+    TextMessageContentEvent, 
+    Message,
+    State,
+    StateDeltaEvent,
+    RunStartedEvent,
+    RunFinishedEvent,
+    RunErrorEvent
+)
+
+
+class Task(BaseModel):
+    """任务模型，用于定义Agent任务"""
+    id: str
+    query: str
 
 
 class AGUIAdapter:
@@ -45,8 +36,6 @@ class AGUIAdapter:
     
     def __init__(self, langgraph_agent=None):
         self.langgraph_agent = langgraph_agent
-        if not AG_UI_AVAILABLE:
-            print("警告: ag-ui-protocol 未安装，使用模拟实现")
     
     async def event_stream_adapter(self, task: Task) -> AsyncGenerator[str, None]:
         """
@@ -61,11 +50,13 @@ class AGUIAdapter:
         """
         try:
             # 步骤 1: 产生 AG-UI 的 "开始" 事件
-            yield json.dumps(State(status="running").model_dump())
+            run_started = RunStartedEvent(run_id=task.id)
+            yield json.dumps(run_started.model_dump())
             
             if self.langgraph_agent is None:
                 # 如果没有 langgraph agent，使用简单的 LLM 流式响应
-                yield from self._simple_llm_stream(task)
+                async for event in self._simple_llm_stream(task):
+                    yield event
                 return
             
             # 步骤 2: 调用 langgraph Agent 的流式事件接口
@@ -80,41 +71,62 @@ class AGUIAdapter:
                     # LLM 的流式输出
                     content = event["data"]["chunk"].content
                     if content:
-                        yield json.dumps(Text(content=content).model_dump())
+                        text_chunk = TextMessageChunkEvent(
+                            delta=content,
+                            snapshot=content
+                        )
+                        yield json.dumps(text_chunk.model_dump())
                 
                 elif kind == "on_tool_start":
                     # 工具开始调用
                     tool_name = event["data"].get("input", {}).get("tool", "unknown")
-                    yield json.dumps(State(status="tool_calling", tool=tool_name).model_dump())
+                    state_delta = StateDeltaEvent(
+                        key="tool_status",
+                        value=f"calling_{tool_name}"
+                    )
+                    yield json.dumps(state_delta.model_dump())
                 
                 elif kind == "on_tool_end":
                     # 工具调用完成
-                    yield json.dumps(State(status="tool_completed").model_dump())
+                    state_delta = StateDeltaEvent(
+                        key="tool_status", 
+                        value="completed"
+                    )
+                    yield json.dumps(state_delta.model_dump())
                 
                 # 可以添加更多事件类型的处理
                 # elif kind == "on_chain_start":
                 # elif kind == "on_chain_end":
             
             # 步骤 4: 产生 AG-UI 的 "完成" 事件
-            yield json.dumps(State(status="done").model_dump())
+            run_finished = RunFinishedEvent(run_id=task.id)
+            yield json.dumps(run_finished.model_dump())
             
         except Exception as e:
             # 步骤 5: 错误处理
-            error_payload = {
-                "message": "An unexpected error occurred", 
-                "details": str(e)
-            }
-            yield json.dumps(Error(code="INTERNAL_SERVER_ERROR", **error_payload).model_dump())
-            yield json.dumps(State(status="error").model_dump())
+            run_error = RunErrorEvent(
+                run_id=task.id,
+                error=str(e)
+            )
+            yield json.dumps(run_error.model_dump())
     
     async def _simple_llm_stream(self, task: Task) -> AsyncGenerator[str, None]:
         """
         简单的 LLM 流式响应（当没有 langgraph 时的后备方案）
         """
         # 这里需要访问 LLM 客户端，实际实现中需要通过依赖注入
-        yield json.dumps(Text(content="正在处理您的请求...").model_dump())
+        text_chunk = TextMessageChunkEvent(
+            delta="正在处理您的请求...",
+            snapshot="正在处理您的请求..."
+        )
+        yield json.dumps(text_chunk.model_dump())
         await asyncio.sleep(0.1)  # 模拟处理时间
-        yield json.dumps(Text(content="处理完成")).model_dump())
+        
+        text_chunk = TextMessageChunkEvent(
+            delta="处理完成",
+            snapshot="正在处理您的请求...处理完成"
+        )
+        yield json.dumps(text_chunk.model_dump())
     
     def create_fastapi_endpoint(self):
         """
@@ -126,10 +138,7 @@ class AGUIAdapter:
             FastAPI 端点函数
             接收 AG-UI Task，返回标准的 SSE 流
             """
-            try:
-                from sse_starlette.sse import EventSourceResponse
-            except ImportError:
-                raise ImportError("需要安装 sse-starlette: pip install sse-starlette")
+            from sse_starlette.sse import EventSourceResponse
             
             return EventSourceResponse(
                 self.event_stream_adapter(task),

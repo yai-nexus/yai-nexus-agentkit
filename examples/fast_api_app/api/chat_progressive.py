@@ -12,22 +12,9 @@ from pydantic import BaseModel
 from yai_nexus_agentkit.adapter import BasicSSEAdapter, AGUIAdapter, LanggraphAgentMock
 from yai_nexus_agentkit.llm import create_llm
 
-# 尝试导入可选依赖
-try:
-    from sse_starlette.sse import EventSourceResponse
-    SSE_AVAILABLE = True
-except ImportError:
-    SSE_AVAILABLE = False
-
-try:
-    from ag_ui.core.events import Task
-    AG_UI_AVAILABLE = True
-except ImportError:
-    AG_UI_AVAILABLE = False
-    # 创建模拟的 Task 类型
-    class Task(BaseModel):
-        id: str
-        query: str
+# 核心依赖 - 直接导入
+from sse_starlette.sse import EventSourceResponse
+from yai_nexus_agentkit.adapter.sse_advanced import Task
 
 
 # --- 请求/响应模型 ---
@@ -78,12 +65,6 @@ async def chat_stream_basic(request: ChatRequest):
     中级模式：基础 SSE 流式响应
     适合：需要流式体验但不需要复杂协议的场景
     """
-    if not SSE_AVAILABLE:
-        raise HTTPException(
-            status_code=503, 
-            detail="SSE support not available. Install with: pip install sse-starlette"
-        )
-    
     try:
         # 创建 LLM 客户端
         llm_config = {
@@ -113,18 +94,6 @@ async def chat_stream_advanced(task: Task):
     高级模式：完整的 AG-UI 协议支持
     适合：需要标准化事件模型和复杂交互的场景
     """
-    if not AG_UI_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="AG-UI protocol not available. Install with: pip install ag-ui-protocol"
-        )
-    
-    if not SSE_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="SSE support not available. Install with: pip install sse-starlette"
-        )
-    
     try:
         # 创建模拟的 langgraph agent（实际使用时应该从依赖注入获取）
         mock_agent = LanggraphAgentMock()
@@ -150,12 +119,6 @@ async def chat_stream_with_heartbeat(request: ChatRequest):
     带心跳的中级模式
     适合：需要长连接保持的场景
     """
-    if not SSE_AVAILABLE:
-        raise HTTPException(
-            status_code=503,
-            detail="SSE support not available. Install with: pip install sse-starlette"
-        )
-    
     try:
         llm_config = {
             "provider": "openai", 
@@ -183,10 +146,10 @@ async def get_capabilities():
     """
     return {
         "simple_mode": True,
-        "sse_basic": SSE_AVAILABLE,
-        "ag_ui_protocol": AG_UI_AVAILABLE,
+        "sse_basic": True,
+        "ag_ui_protocol": True,
         "dependencies": {
-            "sse_starlette": SSE_AVAILABLE,
-            "ag_ui_protocol": AG_UI_AVAILABLE
+            "sse_starlette": True,
+            "ag_ui_protocol": True
         }
     }

@@ -8,7 +8,7 @@ line-length = 120
 [project]
 name = "yai-nexus-agentkit"
 version = "0.0.1"
-description = "A Python toolkit for building AI applications, designed to be flexible and extensible."
+description = "A FastAPI-first AI agent toolkit with AG-UI protocol support for building modern streaming AI applications."
 authors = [
     { name="YAI-Nexus", email="contact@yai-nexus.com" },
 ]
@@ -24,6 +24,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Framework :: FastAPI",
 ]
 dependencies = [
     "pydantic>=2.0",
@@ -31,6 +34,11 @@ dependencies = [
     "langchain-core",
     "langgraph",
     "yai-nexus-configuration>=0.1.1",
+    # Web framework - core to our FastAPI/AG-UI positioning
+    "fastapi",
+    "uvicorn",
+    "ag-ui-protocol",  # AG-UI 标准事件模型
+    "sse-starlette",   # FastAPI 的 SSE 传输支持
 ]
 
 [project.urls]
@@ -49,12 +57,10 @@ tongyi = ["langchain-community", "dashscope"]
 postgres = ["tortoise-orm", "psycopg"]
 redis = ["redis"]
 
-# Web Adapter Helpers
+# Web extensions (core web functionality now in default dependencies)
 fastapi = [
-    "fastapi", 
-    "uvicorn", 
-    "ag-ui-protocol", # AG-UI 标准事件模型
-    "sse-starlette"   # FastAPI 的 SSE 传输支持
+    "aiohttp",  # For advanced HTTP client needs
+    "httpx",    # Modern HTTP client
 ]
 
 # Development and Quality Tools

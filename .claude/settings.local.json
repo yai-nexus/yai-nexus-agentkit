@@ -9,7 +9,12 @@
       "Bash(black:*)",
       "Bash(ruff check:*)",
       "Bash(mkdir:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(pip search:*)",
+      "Bash(ls:*)",
+      "Bash(source:*)"
     ],
     "deny": []
   }
