@@ -116,35 +116,8 @@ async def chat_stream_advanced(task: Task):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# --- 4. 带心跳的中级模式 ---
-@router.post("/stream-with-heartbeat")
-async def chat_stream_with_heartbeat(request: ChatRequest):
-    """
-    带心跳的中级模式
-    适合：需要长连接保持的场景
-    使用 EventSourceResponse 的 ping 参数来处理心跳
-    """
-    try:
-        llm_config = {
-            "provider": "openai", 
-            "model": "gpt-4o-mini",
-            "api_key": "your-api-key"
-        }
-        llm = create_llm(llm_config)
-        
-        adapter = BasicSSEAdapter(llm)
-        
-        return EventSourceResponse(
-            adapter.stream_response(request.message),
-            ping=30,  # 使用 EventSourceResponse 的内置心跳功能
-            media_type="text/event-stream"
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
-
-# --- 5. 功能检查端点 ---
+# --- 4. 功能检查端点 ---
 @router.get("/capabilities")
 async def get_capabilities():
     """
