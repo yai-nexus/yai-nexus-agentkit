@@ -206,12 +206,28 @@ yai-nexus-agentkit/
 │   ├── adapter/             # Interaction adapters
 │   │   ├── sse_basic.py     # Basic SSE support
 │   │   └── sse_advanced.py  # AG-UI protocol support
-│   ├── core/                # Core abstractions
-│   └── persistence/         # Optional persistence layer
+│   ├── core/                # Core abstractions (base interfaces)
+│   ├── persistence/         # Optional persistence layer
+│   ├── infrastructure/      # Infrastructure components (planned)
+│   └── orchestration/       # Workflow orchestration (planned)
 ├── examples/
 │   └── fast_api_app/        # Complete FastAPI example
 └── configs/                 # Configuration files
 ```
+
+### Module Planning
+
+**Infrastructure Module** (`infrastructure/`): Planned to include:
+- Message brokers and queuing systems
+- Caching mechanisms
+- Service discovery
+- Health checks and monitoring
+
+**Orchestration Module** (`orchestration/`): Planned to include:
+- Complex multi-agent workflows
+- Task scheduling and coordination
+- Event-driven architecture components
+- Workflow state management
 
 ## 🤝 Contributing
 

@@ -17,6 +17,23 @@ from .llm import (
     OpenRouterModel,
 )
 
+from .adapter import (
+    BasicSSEAdapter,
+    SSEEvent,
+    AGUIAdapter,
+    Task,
+)
+
+from .persistence import (
+    DatabaseConfig,
+    TORTOISE_ORM_CONFIG_TEMPLATE,
+    TortoiseRepository,
+    ConversationRepository,
+    PostgresCheckpoint,
+    AgentConversation,
+    AgentMessage,
+)
+
 __all__ = [
     # LLM 核心功能
     "LLMFactory",
@@ -32,4 +49,17 @@ __all__ = [
     "TongyiModel",
     "DoubaoModel",
     "OpenRouterModel",
+    # 适配器
+    "BasicSSEAdapter",
+    "SSEEvent",
+    "AGUIAdapter",
+    "Task",
+    # 持久化
+    "DatabaseConfig",
+    "TORTOISE_ORM_CONFIG_TEMPLATE",
+    "TortoiseRepository",
+    "ConversationRepository",
+    "PostgresCheckpoint",
+    "AgentConversation",
+    "AgentMessage",
 ]

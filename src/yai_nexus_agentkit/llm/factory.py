@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """LLMFactory 定义，用于管理和提供 LLM 客户端实例。"""
+import logging
 import threading
 from typing import Dict, Optional
 
@@ -46,7 +47,7 @@ class LLMFactory:
         """
         if model_id in self._configs:
             # 根据策略决定是忽略、警告还是抛出异常
-            print(f"警告：模型ID '{model_id}' 的配置已被覆盖。")
+            logging.warning(f"模型ID '{model_id}' 的配置已被覆盖。")
         self._configs[model_id] = config
 
     def get_model_config(self, model_id: str) -> LLMConfig:
@@ -102,7 +103,7 @@ class LLMFactory:
         creation_params = config_obj.model_dump(exclude={"provider"})
         
         # 3. 委托给 registry 中的统一创建函数
-        print(f"正在为 '{model_id}' 创建新的 LLM 实例，提供商为：{config_obj.provider.value}")
+        logging.info(f"正在为 '{model_id}' 创建新的 LLM 实例，提供商为：{config_obj.provider.value}")
         return create_langchain_llm(
             provider=config_obj.provider,
             config=creation_params
