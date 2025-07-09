@@ -31,6 +31,7 @@
 ```python
 # src/yai_nexus_agentkit/persistence/db_config.py
 from pydantic import BaseModel, Field
+from typing import Optional
 
 class DatabaseConfig(BaseModel):
     """数据库连接配置"""
@@ -40,6 +41,23 @@ class DatabaseConfig(BaseModel):
         examples=["postgres://postgres:mysecretpassword@localhost:5432/agent_db"]
     )
     generate_schemas: bool = Field(True, description="是否在启动时自动创建数据库表")
+    max_connections: int = Field(20, description="最大连接数")
+    min_connections: int = Field(1, description="最小连接数")
+    connection_timeout: int = Field(30, description="连接超时时间（秒）")
+    query_timeout: int = Field(30, description="查询超时时间（秒）")
+    
+    @classmethod
+    def from_env(cls) -> 'DatabaseConfig':
+        """从环境变量创建配置"""
+        import os
+        return cls(
+            db_url=os.getenv("DATABASE_URL", "postgres://postgres:password@localhost:5432/agent_db"),
+            generate_schemas=os.getenv("DB_GENERATE_SCHEMAS", "true").lower() == "true",
+            max_connections=int(os.getenv("DB_MAX_CONNECTIONS", "20")),
+            min_connections=int(os.getenv("DB_MIN_CONNECTIONS", "1")),
+            connection_timeout=int(os.getenv("DB_CONNECTION_TIMEOUT", "30")),
+            query_timeout=int(os.getenv("DB_QUERY_TIMEOUT", "30"))
+        )
 
 TORTOISE_ORM_CONFIG_TEMPLATE = {
     "connections": {"default": ""}, # 将被 db_url 填充
@@ -61,7 +79,7 @@ TORTOISE_ORM_CONFIG_TEMPLATE = {
 from tortoise import fields
 from tortoise.models import Model
 
-class Conversation(Model):
+class AgentConversation(Model):
     """会话模型"""
     id = fields.UUIDField(pk=True)
     title = fields.CharField(max_length=255, null=True)
@@ -76,11 +94,11 @@ class Conversation(Model):
 from tortoise import fields
 from tortoise.models import Model
 
-class Message(Model):
+class AgentMessage(Model):
     """消息模型"""
     id = fields.UUIDField(pk=True)
-    conversation: fields.ForeignKeyRelation["Conversation"] = fields.ForeignKeyField(
-        "models.Conversation", related_name="messages", on_delete=fields.CASCADE
+    conversation: fields.ForeignKeyRelation["AgentConversation"] = fields.ForeignKeyField(
+        "models.AgentConversation", related_name="messages", on_delete=fields.CASCADE
     )
     role = fields.CharField(max_length=50, description="角色 (e.g., 'user', 'assistant')")
     content = fields.TextField()
@@ -98,10 +116,14 @@ class Message(Model):
 ```python
 # src/yai_nexus_agentkit/persistence/repository.py
 
-from typing import Generic, Type, TypeVar, Optional, List, Any
+from typing import Generic, Type, TypeVar, Optional, List, Any, Dict
 from tortoise.models import Model
+from tortoise.transactions import in_transaction
+from tortoise.exceptions import DoesNotExist, IntegrityError
 from yai_nexus_agentkit.core.repository import BaseRepository
+import logging
 
+logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=Model)
 
 class TortoiseRepository(BaseRepository[T], Generic[T]):
@@ -111,16 +133,51 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
         self._model_cls = model_cls
 
     async def get(self, id: Any) -> Optional[T]:
-        return await self._model_cls.get_or_none(id=id)
+        try:
+            return await self._model_cls.get_or_none(id=id)
+        except Exception as e:
+            logger.error(f"Failed to get {self._model_cls.__name__} with id {id}: {e}")
+            return None
 
-    async def list(self) -> List[T]:
-        return await self._model_cls.all()
+    async def list(self, limit: int = 100, offset: int = 0) -> List[T]:
+        try:
+            return await self._model_cls.all().limit(limit).offset(offset)
+        except Exception as e:
+            logger.error(f"Failed to list {self._model_cls.__name__}: {e}")
+            return []
+    
+    async def filter(self, **kwargs) -> List[T]:
+        try:
+            return await self._model_cls.filter(**kwargs)
+        except Exception as e:
+            logger.error(f"Failed to filter {self._model_cls.__name__}: {e}")
+            return []
 
     async def add(self, entity: T) -> T:
+        try:
+            await entity.save()
+            return entity
+        except IntegrityError as e:
+            logger.error(f"Integrity error while adding {self._model_cls.__name__}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Failed to add {self._model_cls.__name__}: {e}")
+            raise
+    
+    async def update(self, entity: T) -> T:
         await entity.save()
         return entity
     
-    # ... 其他方法的实现 (update, delete)
+    async def delete(self, id: Any) -> bool:
+        try:
+            entity = await self._model_cls.get(id=id)
+            await entity.delete()
+            return True
+        except Exception:
+            return False
+    
+    async def exists(self, id: Any) -> bool:
+        return await self._model_cls.filter(id=id).exists()
 ```
 
 ### 2.4. Checkpoint 实现 (`persistence/checkpoint.py`)
@@ -130,27 +187,73 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
 ```python
 # src/yai_nexus_agentkit/persistence/checkpoint.py
 
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from langgraph.checkpoint.postgres import AsyncPostgresSaver
+from langgraph.checkpoint.base import CheckpointTuple
 from yai_nexus_agentkit.core.checkpoint import BaseCheckpoint
 from .db_config import DatabaseConfig
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PostgresCheckpoint(BaseCheckpoint):
     """基于 PostgreSQL 的 Checkpoint 实现"""
 
     def __init__(self, config: DatabaseConfig):
-        # AsyncPostgresSaver 需要一个连接池或 DSN
-        self.saver = AsyncPostgresSaver.from_conn_string(config.db_url)
+        self.config = config
+        self.saver = None
+    
+    async def setup(self):
+        """初始化 AsyncPostgresSaver"""
+        try:
+            self.saver = AsyncPostgresSaver.from_conn_string(self.config.db_url)
+            await self.saver.setup()
+        except Exception as e:
+            logger.error(f"Failed to setup checkpoint: {e}")
+            raise
+    
+    async def cleanup(self):
+        """清理资源"""
+        if self.saver:
+            await self.saver.close()
 
-    async def get(self, key: str) -> Optional[Any]:
-        # key 对应 langgraph 的 thread_id
-        config = {"configurable": {"thread_id": key}}
-        checkpoint = await self.saver.aget(config)
-        return checkpoint
+    async def get(self, key: str) -> Optional[CheckpointTuple]:
+        """获取检查点"""
+        if not self.saver:
+            await self.setup()
+        
+        try:
+            config = {"configurable": {"thread_id": key}}
+            checkpoint = await self.saver.aget(config)
+            return checkpoint
+        except Exception as e:
+            logger.error(f"Failed to get checkpoint for key {key}: {e}")
+            return None
 
-    async def put(self, key: str, value: Any) -> None:
-        config = {"configurable": {"thread_id": key}}
-        await self.saver.aput(config, value)
+    async def put(self, key: str, checkpoint: CheckpointTuple) -> None:
+        """保存检查点"""
+        if not self.saver:
+            await self.setup()
+        
+        try:
+            config = {"configurable": {"thread_id": key}}
+            await self.saver.aput(config, checkpoint)
+        except Exception as e:
+            logger.error(f"Failed to put checkpoint for key {key}: {e}")
+            raise
+    
+    async def list(self, limit: int = 100) -> List[str]:
+        """列出所有检查点键"""
+        if not self.saver:
+            await self.setup()
+        
+        try:
+            # 这里需要根据实际的 AsyncPostgresSaver API 来实现
+            # 目前只是一个示例实现
+            return []
+        except Exception as e:
+            logger.error(f"Failed to list checkpoints: {e}")
+            return []
 ```
 
 ## 3. 目录结构
@@ -185,21 +288,33 @@ from .core.services import Container
 app = FastAPI()
 container = Container()
 
-@app.on_event("startup")
-async def startup_event():
-    db_config = container.db_config() # 从容器获取配置
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # 启动时初始化数据库
+    db_config = container.db_config()
     
     # 动态构建 Tortoise 配置
-    tortoise_config = TORTOISE_ORM_CONFIG_TEMPLATE
+    tortoise_config = TORTOISE_ORM_CONFIG_TEMPLATE.copy()
     tortoise_config["connections"]["default"] = db_config.db_url
     
-    await Tortoise.init(config=tortoise_config)
-    if db_config.generate_schemas:
-        await Tortoise.generate_schemas()
+    try:
+        await Tortoise.init(config=tortoise_config)
+        if db_config.generate_schemas:
+            await Tortoise.generate_schemas()
+        
+        # 初始化 checkpoint
+        checkpoint = container.checkpoint()
+        await checkpoint.setup()
+        
+        yield
+    finally:
+        # 关闭时清理资源
+        await checkpoint.cleanup()
+        await Tortoise.close_connections()
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    await Tortoise.close_connections()
+app = FastAPI(lifespan=lifespan)
 ```
 
 在服务中通过依赖注入使用仓储。
@@ -208,18 +323,47 @@ async def shutdown_event():
 # examples/fast_api_app/core/services.py
 
 from yai_nexus_agentkit.persistence.repository import TortoiseRepository
-from yai_nexus_agentkit.persistence.models import Conversation
+from yai_nexus_agentkit.persistence.models import AgentConversation
+from yai_nexus_agentkit.core.repository import BaseRepository
+from typing import List, Optional
+import uuid
 
 class ConversationService:
-    def __init__(self, repo: BaseRepository[Conversation]):
+    def __init__(self, repo: BaseRepository[AgentConversation]):
         self._repo = repo
 
-    async def get_conversation(self, convo_id: str):
+    async def get_conversation(self, convo_id: str) -> Optional[AgentConversation]:
         return await self._repo.get(convo_id)
+    
+    async def create_conversation(self, title: str = None, metadata: dict = None) -> AgentConversation:
+        conversation = AgentConversation(
+            id=uuid.uuid4(),
+            title=title,
+            metadata_=metadata
+        )
+        return await self._repo.add(conversation)
+    
+    async def list_conversations(self, limit: int = 100, offset: int = 0) -> List[AgentConversation]:
+        return await self._repo.list(limit=limit, offset=offset)
+    
+    async def update_conversation(self, convo_id: str, title: str = None, metadata: dict = None) -> Optional[AgentConversation]:
+        conversation = await self._repo.get(convo_id)
+        if not conversation:
+            return None
+        
+        if title is not None:
+            conversation.title = title
+        if metadata is not None:
+            conversation.metadata_ = metadata
+        
+        return await self._repo.update(conversation)
+    
+    async def delete_conversation(self, convo_id: str) -> bool:
+        return await self._repo.delete(convo_id)
 
 # 在容器中装配
 container.conversation_repository.override(
-    TortoiseRepository(model_cls=Conversation)
+    TortoiseRepository(model_cls=AgentConversation)
 )
 ```
 
