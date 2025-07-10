@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-from typing import Generic, Type, TypeVar, Optional, List, Any, Dict
+from typing import Generic, Type, TypeVar, Optional, List, Any
 from tortoise.models import Model
 from tortoise.transactions import in_transaction
-from tortoise.exceptions import DoesNotExist, IntegrityError
+from tortoise.exceptions import IntegrityError
 from yai_nexus_agentkit.core.repository import BaseRepository
 import logging
 from .models import AgentConversation
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=Model)
+
 
 class TortoiseRepository(BaseRepository[T], Generic[T]):
     """基于 Tortoise ORM 的通用仓储实现"""
@@ -29,7 +30,7 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
         except Exception as e:
             logger.error(f"Failed to list {self._model_cls.__name__}: {e}")
             return []
-    
+
     async def filter(self, **kwargs) -> List[T]:
         try:
             return await self._model_cls.filter(**kwargs)
@@ -42,16 +43,18 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
             await entity.save()
             return entity
         except IntegrityError as e:
-            logger.error(f"Integrity error while adding {self._model_cls.__name__}: {e}")
+            logger.error(
+                f"Integrity error while adding {self._model_cls.__name__}: {e}"
+            )
             raise
         except Exception as e:
             logger.error(f"Failed to add {self._model_cls.__name__}: {e}")
             raise
-    
+
     async def update(self, entity: T) -> T:
         await entity.save()
         return entity
-    
+
     async def delete(self, id: Any) -> bool:
         try:
             entity = await self._model_cls.get(id=id)
@@ -59,7 +62,7 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
             return True
         except Exception:
             return False
-    
+
     async def exists(self, id: Any) -> bool:
         return await self._model_cls.filter(id=id).exists()
 
@@ -81,6 +84,9 @@ class TortoiseRepository(BaseRepository[T], Generic[T]):
             logger.error(f"Failed to count {self._model_cls.__name__}: {e}")
             return 0
 
+
 class ConversationRepository(TortoiseRepository[AgentConversation]):
-    def __init__(self, db_config=None): # db_config is not used but kept for DI compatibility
+    def __init__(
+        self, db_config=None
+    ):  # db_config is not used but kept for DI compatibility
         super().__init__(AgentConversation)

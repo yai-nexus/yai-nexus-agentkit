@@ -30,7 +30,7 @@ class BaseCheckpoint(ABC):
             value: 需要存储的状态。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def list(self, limit: int = 100) -> List[str]:
         """
@@ -43,7 +43,7 @@ class BaseCheckpoint(ABC):
             检查点键的列表。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def delete(self, key: str) -> bool:
         """
@@ -56,17 +56,17 @@ class BaseCheckpoint(ABC):
             删除成功返回 True，否则返回 False。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def setup(self) -> None:
         """
         初始化检查点存储。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def cleanup(self) -> None:
         """
         清理检查点存储资源。
         """
-        raise NotImplementedError 
+        raise NotImplementedError

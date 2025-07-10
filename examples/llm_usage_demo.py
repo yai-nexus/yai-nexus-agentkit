@@ -66,8 +66,12 @@ async def demo_doubao_usage():
 
             factory.register_config("doubao-seed", config)
             llm = factory.get_llm_client("doubao-seed")
-            response = await llm.ainvoke([HumanMessage(content="你好！请用中文回答，什么是人工智能？")])
-            print(f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}")
+            response = await llm.ainvoke(
+                [HumanMessage(content="你好！请用中文回答，什么是人工智能？")]
+            )
+            print(
+                f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}"
+            )
         except Exception as e:
             print(f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 失败: {e}")
     else:
@@ -91,7 +95,9 @@ async def demo_model_enums():
             factory.register_config(model_id, config)
             llm = factory.get_llm_client(model_id)
 
-            response = await llm.ainvoke([HumanMessage(content="用中文回答：什么是人工智能？")])
+            response = await llm.ainvoke(
+                [HumanMessage(content="用中文回答：什么是人工智能？")]
+            )
             print(f"使用模型枚举的回复: {response.content[:100]}...")
         except Exception as e:
             print(f"OpenAI 模型枚举示例失败: {e}")
@@ -110,8 +116,12 @@ async def demo_model_enums():
             factory.register_config(model_id, config)
             llm = factory.get_llm_client(model_id)
 
-            response = await llm.ainvoke([HumanMessage(content="你好！请用中文回答，什么是人工智能？")])
-            print(f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}")
+            response = await llm.ainvoke(
+                [HumanMessage(content="你好！请用中文回答，什么是人工智能？")]
+            )
+            print(
+                f"豆包模型 {DoubaoModel.DOUBAO_SEED_1_6_MODEL.value} 回复: {response.content}"
+            )
         except Exception as e:
             print(f"豆包模型枚举示例失败: {e}")
     else:

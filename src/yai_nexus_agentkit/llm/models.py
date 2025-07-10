@@ -40,9 +40,9 @@ class TongyiModel(str, Enum):
 
 class DoubaoModel(str, Enum):
     """豆包（抖音）常用模型枚举。"""
-    
-    DOUBAO_SEED_1_6_MODEL="doubao-seed-1-6-250615"
-    DOUBAO_SEED_1_5_MODEL="doubao-1.5-thinking-pro-250415"
+
+    DOUBAO_SEED_1_6_MODEL = "doubao-seed-1-6-250615"
+    DOUBAO_SEED_1_5_MODEL = "doubao-1.5-thinking-pro-250415"
     DOUBAO_PRO_4K = "doubao-pro-4k"
     DOUBAO_PRO_32K = "doubao-pro-32k"
     DOUBAO_PRO_128K = "doubao-pro-128k"

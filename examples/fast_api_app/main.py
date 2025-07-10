@@ -11,16 +11,19 @@ from yai_nexus_agentkit.persistence import TORTOISE_ORM_CONFIG_TEMPLATE
 
 # Load configuration
 container.config.from_yaml("config.yml", required=False)
-container.config.db.url.from_env("DATABASE_URL", "postgres://postgres:mysecretpassword@localhost:5432/agent_db")
+container.config.db.url.from_env(
+    "DATABASE_URL", "postgres://postgres:mysecretpassword@localhost:5432/agent_db"
+)
 
 # Initialize LLM Factory
 llm_factory_instance = container.llm_factory()
 default_llm_config = LLMConfig(
     provider=LLMProvider.OPENAI,
     model=OpenAIModel.GPT_3_5_TURBO.value,
-    api_key=os.getenv("OPENAI_API_KEY")
+    api_key=os.getenv("OPENAI_API_KEY"),
 )
 llm_factory_instance.register_config("default_openai", default_llm_config)
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -40,15 +43,19 @@ async def startup_event():
     checkpoint_repo_instance = container.checkpoint_repository()
     await checkpoint_repo_instance.setup()
 
+
 @app.on_event("shutdown")
 async def shutdown_event():
     checkpoint_repo_instance = container.checkpoint_repository()
     await checkpoint_repo_instance.cleanup()
     await Tortoise.close_connections()
 
+
 # Include API routers
 app.include_router(chat.router, prefix="/chat", tags=["Chat"])
-app.include_router(conversations.router, prefix="/conversations", tags=["Conversations"])
+app.include_router(
+    conversations.router, prefix="/conversations", tags=["Conversations"]
+)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

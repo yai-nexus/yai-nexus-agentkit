@@ -30,7 +30,7 @@ class LLMFactory:
         # 防止重复初始化
         if hasattr(self, "_initialized") and self._initialized:
             return
-        
+
         self._configs: Dict[str, LLMConfig] = {}
         self._clients: Dict[str, BaseChatModel] = {}
         self._initialized = True
@@ -89,7 +89,7 @@ class LLMFactory:
     def _create_llm_instance(self, model_id: str) -> BaseChatModel:
         """
         内部方法：根据配置创建 LLM 实例。
-        
+
         Args:
             model_id: 模型的唯一标识符。
 
@@ -98,17 +98,18 @@ class LLMFactory:
         """
         # 1. 获取模型配置
         config_obj = self.get_model_config(model_id)
-        
+
         # 2. 准备创建参数 (移除 provider，因为它不是 LangChain 构造函数的一部分)
         creation_params = config_obj.model_dump(exclude={"provider"})
-        
+
         # 3. 委托给 registry 中的统一创建函数
-        logging.info(f"正在为 '{model_id}' 创建新的 LLM 实例，提供商为：{config_obj.provider.value}")
-        return create_langchain_llm(
-            provider=config_obj.provider,
-            config=creation_params
+        logging.info(
+            f"正在为 '{model_id}' 创建新的 LLM 实例，提供商为：{config_obj.provider.value}"
         )
+        return create_langchain_llm(
+            provider=config_obj.provider, config=creation_params
+        )
+
 
 # 全局单例
 llm_factory = LLMFactory()
-

@@ -6,9 +6,9 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 import uuid
 
-from yai_nexus_agentkit.persistence.models import AgentConversation
 from ..app import container
 from ..core.services import ConversationService
+
 
 class ConversationResponse(BaseModel):
     id: uuid.UUID
@@ -19,18 +19,21 @@ class ConversationResponse(BaseModel):
         orm_mode = True
         from_attributes = True
 
+
 router = APIRouter()
 
 
 # --- 请求和响应模型 ---
 class ConversationCreateRequest(BaseModel):
     """创建对话请求模型"""
+
     title: Optional[str] = None
     metadata: Optional[dict] = None
 
 
 class ConversationUpdateRequest(BaseModel):
     """更新对话请求模型"""
+
     title: Optional[str] = None
     metadata: Optional[dict] = None
 
@@ -104,7 +107,7 @@ async def delete_conversation_endpoint(
 
 @router.get("/stats/count")
 async def get_conversation_count(
-    service: ConversationService = Depends(get_conversation_service)
+    service: ConversationService = Depends(get_conversation_service),
 ):
     """获取对话数量统计"""
     count = await service.count_conversations()

@@ -69,12 +69,12 @@ class BaseRepository(ABC, Generic[T]):
 
         Args:
             id: 要删除的实体的唯一标识符。
-            
+
         Returns:
             删除成功返回 True，否则返回 False。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def filter(self, **kwargs) -> List[T]:
         """
@@ -87,7 +87,7 @@ class BaseRepository(ABC, Generic[T]):
             符合条件的实体列表。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def exists(self, id: Any) -> bool:
         """
@@ -100,7 +100,7 @@ class BaseRepository(ABC, Generic[T]):
             存在返回 True，否则返回 False。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def count(self, **kwargs) -> int:
         """
@@ -113,7 +113,7 @@ class BaseRepository(ABC, Generic[T]):
             符合条件的实体数量。
         """
         raise NotImplementedError
-    
+
     @abstractmethod
     async def bulk_create(self, entities: List[T]) -> List[T]:
         """
@@ -125,4 +125,4 @@ class BaseRepository(ABC, Generic[T]):
         Returns:
             已创建的实体列表。
         """
-        raise NotImplementedError 
+        raise NotImplementedError

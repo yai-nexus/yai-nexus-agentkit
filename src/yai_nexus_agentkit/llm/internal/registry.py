@@ -110,7 +110,9 @@ _PROVIDER_REGISTRY: Dict[LLMProvider, Callable[[Dict[str, Any]], BaseChatModel]]
 # ------------------------------------------------------------------------------
 
 
-def create_langchain_llm(provider: LLMProvider, config: Dict[str, Any]) -> BaseChatModel:
+def create_langchain_llm(
+    provider: LLMProvider, config: Dict[str, Any]
+) -> BaseChatModel:
     """
     根据提供商和配置创建 LangChain BaseChatModel 实例。
 

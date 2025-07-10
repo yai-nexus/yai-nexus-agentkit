@@ -7,9 +7,4 @@
 from .sse_basic import BasicSSEAdapter, SSEEvent
 from .sse_advanced import AGUIAdapter, Task
 
-__all__ = [
-    "BasicSSEAdapter", 
-    "SSEEvent",
-    "AGUIAdapter", 
-    "Task"
-]
+__all__ = ["BasicSSEAdapter", "SSEEvent", "AGUIAdapter", "Task"]

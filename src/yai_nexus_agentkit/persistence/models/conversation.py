@@ -1,8 +1,10 @@
 from tortoise import fields
 from tortoise.models import Model
 
+
 class AgentConversation(Model):
     """会话模型"""
+
     id = fields.UUIDField(pk=True)
     checkpoint_thread_id = fields.UUIDField(unique=True, index=True, null=False)
     title = fields.CharField(max_length=255, null=True)

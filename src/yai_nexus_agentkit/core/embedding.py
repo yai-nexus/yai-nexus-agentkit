@@ -18,4 +18,4 @@ class BaseEmbedding(ABC):
         Returns:
             一个表示文本向量的浮点数列表。
         """
-        raise NotImplementedError 
+        raise NotImplementedError
