@@ -20,9 +20,5 @@ export type { YaiNexusPersistenceProviderProps } from './provider';
 export { ChatStorage } from './storage';
 export type { ChatMessage, ConversationData } from './storage';
 
-// Adapter (internal, but exported for advanced usage)
-export { YaiNexusAdapter } from './adapter';
-export type { YaiNexusAdapterConfig } from './adapter';
-
-// Re-export protocol definitions and types from ag-ui
-export * from "@ag-ui/proto"; 
+// Note: YaiNexusAdapter has been removed in favor of direct AG-UI integration
+// Users should now use the agents configuration in CopilotRuntime 

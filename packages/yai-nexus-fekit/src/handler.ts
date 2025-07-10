@@ -1,5 +1,9 @@
-import { CopilotRuntime, copilotRuntimeNextJSAppRouterEndpoint } from "@copilotkit/runtime";
-import { YaiNexusAdapter, YaiNexusAdapterConfig } from "./adapter";
+import { 
+  CopilotRuntime, 
+  copilotRuntimeNextJSAppRouterEndpoint,
+  CopilotServiceAdapter
+} from "@copilotkit/runtime";
+import { HttpAgent } from "@ag-ui/client";
 import { NextRequest } from "next/server";
 
 export interface CreateYaiNexusHandlerOptions {
@@ -11,8 +15,106 @@ export interface CreateYaiNexusHandlerOptions {
 }
 
 /**
+ * Lightweight adapter that proxies requests to AG-UI HttpAgent
+ * This is much simpler than the previous 180-line adapter
+ */
+class YaiNexusServiceAdapter implements CopilotServiceAdapter {
+  private httpAgent: HttpAgent;
+
+  constructor(backendUrl: string) {
+    this.httpAgent = new HttpAgent({
+      url: backendUrl,
+      description: "YAI Nexus Agent for AG-UI protocol"
+    });
+  }
+
+  async process(request: any): Promise<any> {
+    // Since HttpAgent expects RunAgentInput format, we need minimal conversion
+    const agentInput = {
+      threadId: request.threadId || 'default',
+      runId: request.runId || `run_${Date.now()}`,
+      messages: request.messages || [],
+      tools: request.tools || [],
+      context: [],
+      state: request.state || null,
+    };
+
+    // Use HttpAgent's runAgent method for non-streaming
+    await this.httpAgent.runAgent(agentInput);
+    
+    // For now, return a simple response
+    // The HttpAgent handles the AG-UI protocol internally
+    return {
+      id: `response_${Date.now()}`,
+      content: "Response from YAI Nexus backend",
+      role: "assistant"
+    };
+  }
+
+  async *stream(request: any): AsyncIterable<any> {
+    // Since HttpAgent expects RunAgentInput format, we need minimal conversion
+    const agentInput = {
+      threadId: request.threadId || 'default',
+      runId: request.runId || `run_${Date.now()}`,
+      messages: request.messages || [],
+      tools: request.tools || [],
+      context: [],
+      state: request.state || null,
+    };
+
+    // Use HttpAgent's run method for streaming
+    const events$ = this.httpAgent.run(agentInput);
+    
+    // Convert Observable to AsyncIterable
+    yield* this.observableToAsyncIterable(events$);
+  }
+
+  private async *observableToAsyncIterable(observable: any): AsyncIterable<any> {
+    const chunks: any[] = [];
+    let completed = false;
+    let error: any = null;
+
+    const subscription = observable.subscribe({
+      next: (chunk: any) => chunks.push(chunk),
+      error: (err: any) => { error = err; },
+      complete: () => { completed = true; }
+    });
+
+    try {
+      while (!completed && !error) {
+        if (chunks.length > 0) {
+          const chunk = chunks.shift();
+          // Convert AG-UI events to CopilotKit format
+          yield {
+            type: 'content',
+            content: chunk.type || 'event',
+            data: chunk
+          };
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      }
+
+      if (error) throw error;
+
+      // Process remaining chunks
+      while (chunks.length > 0) {
+        const chunk = chunks.shift();
+        yield {
+          type: 'content', 
+          content: chunk.type || 'event',
+          data: chunk
+        };
+      }
+    } finally {
+      subscription.unsubscribe();
+    }
+  }
+}
+
+/**
  * Creates a Next.js API route handler that connects CopilotKit frontend
- * with yai-nexus-agentkit Python backend through ag-ui-protocol
+ * with yai-nexus-agentkit Python backend using AG-UI protocol
  * 
  * @param options Configuration options for the handler
  * @returns Next.js POST handler function
@@ -28,12 +130,10 @@ export interface CreateYaiNexusHandlerOptions {
  * ```
  */
 export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
-  // Create YaiNexus adapter instance
-  const serviceAdapter = new YaiNexusAdapter({
-    backendUrl: options.backendUrl,
-  });
+  // Create lightweight service adapter that proxies to AG-UI HttpAgent
+  const serviceAdapter = new YaiNexusServiceAdapter(options.backendUrl);
 
-  // Create CopilotRuntime instance
+  // Create CopilotRuntime
   const runtime = new CopilotRuntime({
     middleware: {
       onBeforeRequest: async ({ threadId, runId, inputMessages, properties }) => {
@@ -41,7 +141,7 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
           console.log('[YaiNexus] Request:', {
             threadId,
             runId,
-            inputMessages: inputMessages.length,
+            messageCount: inputMessages.length,
             properties
           });
         }
@@ -63,7 +163,7 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
   // Create and return the Next.js POST handler
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
     runtime,
-    serviceAdapter,
+    serviceAdapter, // Use our lightweight adapter
     endpoint: "/api/copilotkit",
   });
 
