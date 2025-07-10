@@ -1,85 +1,93 @@
 # YAI Nexus AgentKit
 
-> **A FastAPI-first AI agent toolkit with AG-UI protocol support for building modern streaming AI applications.**
+> **一个以 FastAPI 为核心、支持 AG-UI 协议的 AI 代理工具包，专为构建现代流式 AI 应用而设计。**
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![FastAPI](https://img.shields.io/badge/FastAPI-first-green.svg)](https://fastapi.tiangolo.com/)
-[![AG-UI](https://img.shields.io/badge/AG--UI-protocol-orange.svg)](https://github.com/ag-ui/protocol)
+[![AG-UI](https://img.shields.io/badge/AG--UI-高保真实现-orange.svg)](https://github.com/ag-ui/protocol)
 
-## 🚀 Quick Start
+---
+
+## 🚀 快速开始
 
 ```bash
-# Install the toolkit
+# 安装工具包
 pip install yai-nexus-agentkit
 
-# Run the example application
+# 运行示例应用
 python -m examples.fast_api_app.main
 ```
 
-Open your browser to `http://localhost:8000/docs` to explore the interactive API documentation.
+现在，在浏览器中打开 `http://localhost:8000/docs`，即可探索交互式的 API 文档。
 
-## 🎯 What Makes This Special
+---
 
-**YAI Nexus AgentKit** is designed specifically for developers who want to build **modern streaming AI applications** with **FastAPI** and **AG-UI protocol** support. Unlike generic AI frameworks, we provide:
+## 🎯 项目特色
 
-- **🔥 FastAPI-First Design**: Built from the ground up for web applications
-- **📡 Streaming by Default**: Server-Sent Events (SSE) for real-time AI interactions
-- **🎨 AG-UI Protocol**: Standard event models for seamless frontend integration
-- **📊 Multi-LLM Support**: OpenAI, Anthropic, ZhipuAI, Tongyi, OpenRouter
-- **🔧 Gradual Complexity**: Three API levels from simple to advanced
-- **🏗️ Production Ready**: Built on LangChain and LangGraph foundations
+**YAI Nexus AgentKit** 专为希望使用 **FastAPI** 构建**现代流式 AI 应用**的开发者而设计。与其他通用型 AI 框架不同，我们提供：
 
-## 🏛️ Architecture Overview
+-   **🔥 FastAPI 优先**：专为 Web 应用场景从零开始设计，与 FastAPI 无缝集成。
+-   **📡 默认即流式**：默认使用 SSE (Server-Sent Events) 提供真正的实时 AI 交互体验。
+-   **🎨 高保真 AG-UI 协议**：我们对 [AG-UI 协议](https://github.com/ag-ui/protocol) 提供了高保真实现，能够完整、准确地将 Agent 的内部活动（包括工具调用细节）映射到标准事件，实现完全透明、可观察、可调试的前端交互界面。
+-   **🔧 三层渐进式 API**：提供从简单到高级的三种 API 模式，满足不同复杂度的需求。
+-   **📊 支持多种 LLM**：无缝切换 OpenAI, Anthropic, ZhipuAI, Tongyi, OpenRouter 等主流供应商。
+-   **🏗️ 生产就绪**：基于 LangChain 和 LangGraph 的坚实基础构建，稳定可靠。
+
+---
+
+## 🏛️ 架构概览
 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend UI   │◄──►│  AG-UI Protocol │◄──►│  YAI AgentKit   │
-│                 │    │   (SSE Events)  │    │                 │
+│   前端 UI 应用    │◄──►│ AG-UI 标准事件流 │◄──►│ YAI AgentKit    │
+│ (React/Vue/...) │    │   (SSE)         │    │ (AGUIAdapter)   │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
                                                         │
                        ┌─────────────────┐    ┌─────────────────┐
-                       │   LangGraph     │◄──►│   FastAPI App   │
-                       │  (Orchestration)│    │   (Web Layer)   │
+                       │   LangGraph     │◄──►│   FastAPI 应用  │
+                       │ (业务流程编排)  │    │   (Web 服务层)  │
                        └─────────────────┘    └─────────────────┘
                                 │
                        ┌─────────────────┐
-                       │   Multi-LLM     │
-                       │   (OpenAI, etc) │
+                       │   多LLM后端     │
+                       │ (OpenAI, 等)    │
                        └─────────────────┘
 ```
 
-## 🎨 Three Levels of API Complexity
+---
 
-### Level 1: Simple Mode
-Perfect for getting started - direct LLM calls with minimal setup.
+## 🎨 三种复杂度的 API
+
+### 第一层：简单模式
+适合快速上手——以最少的设置直接调用 LLM。
 
 ```python
 from yai_nexus_agentkit import create_llm
 
-# Create LLM client
+# 创建 LLM 客户端
 llm = create_llm({
     "provider": "openai",
     "model": "gpt-4o-mini",
     "api_key": "sk-..."
 })
 
-# Simple chat
-response = llm.invoke("Hello, world!")
+# 简单问答
+response = llm.invoke("你好，世界！")
 print(response.content)
 ```
 
-### Level 2: Streaming Mode
-Add real-time streaming responses with Server-Sent Events.
+### 第二层：流式模式
+通过 SSE 增加实时流式响应。
 
 ```python
 from yai_nexus_agentkit.adapter import BasicSSEAdapter
 from sse_starlette.sse import EventSourceResponse
 
-# Create streaming adapter
+# 创建基础的 SSE 适配器
 adapter = BasicSSEAdapter(llm)
 
-# FastAPI endpoint
+# FastAPI 端点
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     return EventSourceResponse(
@@ -88,19 +96,22 @@ async def chat_stream(request: ChatRequest):
     )
 ```
 
-### Level 3: Advanced Mode
-Full AG-UI protocol support with LangGraph orchestration.
+### 第三层：高级模式
+使用 `AGUIAdapter`，提供完整的 AG-UI 协议支持和 LangGraph 流程编排，是构建复杂 Agent 的理想选择。
 
 ```python
 from yai_nexus_agentkit.adapter import AGUIAdapter
 from yai_nexus_agentkit.adapter.sse_advanced import Task
 
-# Create AG-UI adapter with LangGraph agent
+# 使用你的 LangGraph Agent 创建高级适配器
+# Agent 的内部思考、工具调用等过程将被自动转换为 AG-UI 事件
 adapter = AGUIAdapter(your_langgraph_agent)
 
-# AG-UI compatible endpoint
-@app.post("/chat/advanced")
+# 创建兼容 AG-UI 的 FastAPI 端点
+@app.post("/chat/agent")
 async def chat_advanced(task: Task):
+    # Task 模型支持 thread_id，用于实现多轮对话
+    # task = Task(id="run-123", query="搜索一下今天的天气", thread_id="thread-abc")
     return EventSourceResponse(
         adapter.event_stream_adapter(task),
         ping=15,
@@ -108,197 +119,93 @@ async def chat_advanced(task: Task):
     )
 ```
 
-## 🔧 Installation & Setup
+---
 
-### Basic Installation
+## 🔧 安装与配置
+
+### 基础安装
 ```bash
 pip install yai-nexus-agentkit
 ```
 
-### With Optional Dependencies
+### 带可选依赖项的安装
 ```bash
-# For specific LLM providers
+# 安装特定的 LLM 供应商支持
 pip install yai-nexus-agentkit[openai,anthropic]
 
-# For persistence support
+# 安装持久化支持
 pip install yai-nexus-agentkit[persistence]
 
-# For development
+# 安装开发所需全部依赖
 pip install yai-nexus-agentkit[dev]
 ```
 
-### Environment Configuration
-Create a `.env` file:
+### 环境配置
+在项目根目录创建 `.env` 文件：
 ```env
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 OPENROUTER_API_KEY=sk-or-...
-MODEL_TO_USE=gpt-4o-mini  # Optional: specify default model
+# ... 其他供应商的 API Key
 ```
 
-## 📊 Supported LLM Providers
+---
 
-| Provider | Models | Status |
-|----------|---------|--------|
-| **OpenAI** | GPT-4, GPT-3.5, GPT-4o | ✅ Full Support |
-| **Anthropic** | Claude-3, Claude-3.5 | ✅ Full Support |
-| **ZhipuAI** | GLM-4, GLM-3 | ✅ Full Support |
-| **Tongyi** | Qwen Series | ✅ Full Support |
-| **OpenRouter** | 100+ Models | ✅ Full Support |
-
-## 🎭 Real-World Example
-
-Here's a complete streaming AI chat application:
-
-```python
-# main.py
-from fastapi import FastAPI
-from yai_nexus_agentkit import create_llm
-from yai_nexus_agentkit.adapter import BasicSSEAdapter
-from sse_starlette.sse import EventSourceResponse
-
-app = FastAPI(title="My AI Chat App")
-
-# Initialize LLM
-llm = create_llm({
-    "provider": "openai",
-    "model": "gpt-4o-mini",
-    "api_key": "your-api-key"
-})
-
-# Create streaming adapter
-adapter = BasicSSEAdapter(llm)
-
-@app.post("/chat/stream")
-async def chat_stream(message: str):
-    return EventSourceResponse(
-        adapter.stream_response(message),
-        media_type="text/event-stream"
-    )
-
-# Run: uvicorn main:app --reload
-```
-
-Frontend JavaScript:
-```javascript
-// Connect to streaming endpoint
-const eventSource = new EventSource('/chat/stream');
-
-eventSource.onmessage = function(event) {
-    const data = JSON.parse(event.data);
-    
-    if (data.event === 'content') {
-        // Display streaming content
-        document.getElementById('chat').innerHTML += data.data.content;
-    }
-};
-```
-
-## 🏗️ Project Structure
+## 🏗️ 项目结构
 
 ```
 yai-nexus-agentkit/
 ├── src/yai_nexus_agentkit/
-│   ├── llm/                 # Multi-LLM support
-│   │   ├── factory.py       # LLM creation factory
-│   │   ├── providers.py     # Provider definitions
-│   │   └── models.py        # Model enumerations
-│   ├── adapter/             # Interaction adapters
-│   │   ├── sse_basic.py     # Basic SSE support
-│   │   └── sse_advanced.py  # AG-UI protocol support
-│   ├── core/                # Core abstractions (base interfaces)
-│   ├── persistence/         # Optional persistence layer
-│   ├── infrastructure/      # Infrastructure components (planned)
-│   └── orchestration/       # Workflow orchestration (planned)
+│   ├── llm/                 # 多LLM支持层
+│   │   ├── factory.py       # LLM 创建工厂
+│   │   └── ...
+│   ├── adapter/             # 适配器层 (协议转换)
+│   │   ├── sse_basic.py     # 基础 SSE 适配器
+│   │   ├── sse_advanced.py  # 高级 AG-UI 适配器
+│   │   ├── langgraph_events.py # LangGraph 事件枚举
+│   │   └── errors.py        # 自定义异常
+│   ├── core/                # 核心抽象与业务事件
+│   │   └── events.py        # EventEmitter 定义
+│   └── persistence/         # 可选的持久化层
 ├── examples/
-│   └── fast_api_app/        # Complete FastAPI example
-└── configs/                 # Configuration files
+│   └── fast_api_app/        # 一个完整的 FastAPI 示例应用
+├── tests/
+│   ├── unit/                # 单元测试
+│   └── integration/         # 集成测试
+└── pyproject.toml           # 项目配置文件
 ```
 
-### Module Planning
+---
 
-**Infrastructure Module** (`infrastructure/`): Planned to include:
-- Message brokers and queuing systems
-- Caching mechanisms
-- Service discovery
-- Health checks and monitoring
+## 🤝 贡献代码
 
-**Orchestration Module** (`orchestration/`): Planned to include:
-- Complex multi-agent workflows
-- Task scheduling and coordination
-- Event-driven architecture components
-- Workflow state management
+我们非常欢迎社区贡献！请参考我们的 [贡献指南](CONTRIBUTING.md)。
 
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
+### 开发环境设置
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/yai-nexus/yai-nexus-agentkit.git
 cd yai-nexus-agentkit
 
-# Install in development mode
+# 以可编辑模式安装，并包含开发依赖
 pip install -e ".[dev]"
 
-# Run tests
+# 运行测试
 pytest
 
-# Format code
+# 代码格式化与检查
 black .
 ruff check .
 ```
 
-## 📖 Documentation
+---
 
-- **[API Reference](docs/api.md)** - Complete API documentation
-- **[Examples](examples/)** - Working examples and tutorials
-- **[FastAPI Integration](examples/fast_api_app/README.md)** - FastAPI-specific guide
-- **[AG-UI Protocol](docs/ag-ui.md)** - AG-UI protocol implementation
+## 📄 许可证
 
-## 🔒 Security
-
-- ✅ API keys handled securely through environment variables
-- ✅ No sensitive data logged or stored
-- ✅ Input validation and sanitization
-- ✅ Rate limiting support (via FastAPI middleware)
-
-## 🎯 Roadmap
-
-- [ ] **v0.1.0**: Core functionality with basic streaming
-- [ ] **v0.2.0**: Advanced LangGraph integration
-- [ ] **v0.3.0**: WebSocket support
-- [ ] **v0.4.0**: Built-in authentication
-- [ ] **v0.5.0**: Distributed deployment support
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-- Built on the shoulders of [LangChain](https://github.com/langchain-ai/langchain) and [LangGraph](https://github.com/langchain-ai/langgraph)
-- Inspired by [FastAPI](https://fastapi.tiangolo.com/)'s developer experience
-- AG-UI protocol for standardized AI interactions
-- The open-source AI community
-
-## 🚀 Get Started Today
-
-```bash
-pip install yai-nexus-agentkit
-python -m examples.fast_api_app.main
-```
-
-**Build the future of AI applications with FastAPI and streaming by default!**
+本项目基于 MIT 许可证开源 - 详情请见 [LICENSE](LICENSE) 文件。
 
 ---
 
 <div align="center">
-  <p>Made with ❤️ by the YAI Nexus team</p>
-  <p>
-    <a href="https://github.com/yai-nexus/yai-nexus-agentkit">GitHub</a> •
-    <a href="https://docs.yai-nexus.com">Documentation</a> •
-    <a href="https://discord.gg/yai-nexus">Community</a>
-  </p>
+  <p>由 YAI Nexus 团队 ❤️ 倾情打造</p>
 </div>
