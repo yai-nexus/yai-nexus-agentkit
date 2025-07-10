@@ -11,7 +11,10 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.3.5"
+    "next": "15.3.5",
+    "@yai-nexus/fekit": "workspace:*",
+    "@copilotkit/react-core": "^0.3.0",
+    "@copilotkit/react-ui": "^0.3.0"
   },
   "devDependencies": {
     "typescript": "^5",

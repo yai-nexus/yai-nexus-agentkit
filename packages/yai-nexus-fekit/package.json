@@ -25,7 +25,9 @@
     "@ag-ui/client": "0.0.31",
     "@ag-ui/core": "0.0.31",
     "@ag-ui/encoder": "0.0.31",
-    "@ag-ui/proto": "0.0.31"
+    "@ag-ui/proto": "0.0.31",
+    "@copilotkit/runtime": "^0.3.0",
+    "idb": "^8.0.0"
   },
   "peerDependencies": {
     "@copilotkit/react-core": "^0.3.0",
