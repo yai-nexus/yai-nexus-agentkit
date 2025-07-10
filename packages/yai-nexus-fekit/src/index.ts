@@ -12,12 +12,9 @@ export type { CreateYaiNexusHandlerOptions, YaiNexusHandler } from './handler';
 // Client-side persistence functionality
 export { 
   YaiNexusPersistenceProvider,
-  usePersistence,
-  useConversation, 
-  useSaveMessage,
   useConversationManager 
 } from './provider';
-export type { YaiNexusPersistenceProviderProps, PersistenceContextValue } from './provider';
+export type { YaiNexusPersistenceProviderProps } from './provider';
 
 // Storage functionality
 export { ChatStorage } from './storage';

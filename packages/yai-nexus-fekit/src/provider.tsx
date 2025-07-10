@@ -1,7 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useCopilotChat } from '@copilotkit/react-core';
 import { ChatStorage, ChatMessage, ConversationData } from './storage';
+import { Message, TextMessage } from '@copilotkit/runtime-client-gql';
 
 export interface YaiNexusPersistenceProviderProps {
   userId: string;
@@ -11,18 +13,7 @@ export interface YaiNexusPersistenceProviderProps {
   dbName?: string;
 }
 
-export interface PersistenceContextValue {
-  storage: ChatStorage | null;
-  conversation: ConversationData | null;
-  isLoading: boolean;
-  saveMessage: (message: Omit<ChatMessage, 'id' | 'conversationId' | 'timestamp'>) => Promise<void>;
-  loadConversation: () => Promise<void>;
-  clearConversation: () => Promise<void>;
-  deleteConversation: () => Promise<void>;
-  getUserConversations: () => Promise<ConversationData[]>;
-}
-
-const PersistenceContext = createContext<PersistenceContextValue | null>(null);
+// Removed PersistenceContext as we're now syncing directly with CopilotKit
 
 /**
  * Provider component that adds automatic persistence capabilities to CopilotKit chat components
@@ -54,9 +45,32 @@ export function YaiNexusPersistenceProvider({
   autoSave = true,
   dbName,
 }: YaiNexusPersistenceProviderProps) {
+  return (
+    <PersistenceSync
+      userId={userId}
+      conversationId={conversationId}
+      autoSave={autoSave}
+      dbName={dbName}
+    >
+      {children}
+    </PersistenceSync>
+  );
+}
+
+/**
+ * Sync component that handles automatic message persistence with CopilotKit
+ */
+function PersistenceSync({ 
+  userId, 
+  conversationId, 
+  autoSave, 
+  dbName,
+  children 
+}: YaiNexusPersistenceProviderProps) {
+  const { visibleMessages, appendMessage, setMessages } = useCopilotChat({});
   const [storage, setStorage] = useState<ChatStorage | null>(null);
-  const [conversation, setConversation] = useState<ConversationData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [lastMessageCount, setLastMessageCount] = useState(0);
 
   // Initialize storage
   useEffect(() => {
@@ -65,114 +79,164 @@ export function YaiNexusPersistenceProvider({
         const chatStorage = new ChatStorage(dbName);
         await chatStorage.init();
         setStorage(chatStorage);
-        
-        // Load existing conversation
-        const existingConversation = await chatStorage.loadConversation(conversationId);
-        if (existingConversation) {
-          setConversation(existingConversation);
-        } else {
-          // Create new conversation
-          const newConversation: ConversationData = {
-            id: conversationId,
-            userId,
-            messages: [],
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-          };
-          setConversation(newConversation);
-          await chatStorage.saveConversation(newConversation);
-        }
+        setIsInitialized(true);
       } catch (error) {
         console.error('Failed to initialize chat storage:', error);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     initStorage();
 
-    // Cleanup
     return () => {
       if (storage) {
         storage.close();
       }
     };
-  }, [userId, conversationId, dbName]);
+  }, [dbName]);
 
-  const saveMessage = useCallback(async (
-    messageData: Omit<ChatMessage, 'id' | 'conversationId' | 'timestamp'>
-  ) => {
-    if (!storage || !conversation) return;
+  // Load conversation history on mount
+  useEffect(() => {
+    if (!storage || !isInitialized) return;
 
-    const message: ChatMessage = {
-      ...messageData,
-      id: ChatStorage.generateMessageId(),
-      conversationId,
-      timestamp: Date.now(),
+    const loadHistory = async () => {
+      try {
+        const existingConversation = await storage.loadConversation(conversationId);
+        if (existingConversation && existingConversation.messages.length > 0) {
+          // Convert stored messages to CopilotKit format and inject them
+          const copilotMessages: Message[] = existingConversation.messages.map((msg: any) => 
+            new TextMessage({
+              id: msg.id,
+              role: msg.role,
+              content: msg.content,
+              createdAt: new Date(msg.timestamp).toISOString(),
+            })
+          );
+          
+          // Inject messages into CopilotKit by setting them
+          setMessages(copilotMessages);
+          
+          setLastMessageCount(copilotMessages.length);
+        }
+      } catch (error) {
+        console.error('Failed to load conversation history:', error);
+      }
     };
 
-    try {
-      await storage.addMessage(message);
-      
-      // Update local conversation state
-      setConversation(prev => prev ? {
-        ...prev,
-        messages: [...prev.messages, message],
-        updatedAt: message.timestamp,
-      } : null);
-    } catch (error) {
-      console.error('Failed to save message:', error);
-    }
-  }, [storage, conversation, conversationId]);
+    loadHistory();
+  }, [storage, isInitialized, conversationId, setMessages]);
 
-  const loadConversation = useCallback(async () => {
-    if (!storage) return;
+  // Auto-save new messages
+  useEffect(() => {
+    if (!storage || !autoSave || !isInitialized) return;
+    if (visibleMessages.length <= lastMessageCount) return;
 
-    try {
-      setIsLoading(true);
-      const loadedConversation = await storage.loadConversation(conversationId);
-      if (loadedConversation) {
-        setConversation(loadedConversation);
+    const saveNewMessages = async () => {
+      try {
+        // Get new messages
+        const newMessages = visibleMessages.slice(lastMessageCount);
+        
+        for (const message of newMessages) {
+          if (message.isTextMessage()) {
+            const chatMessage: ChatMessage = {
+              id: message.id,
+              conversationId,
+              role: message.role as 'user' | 'assistant' | 'system',
+              content: message.content,
+              timestamp: new Date(message.createdAt).getTime(),
+            };
+            
+            await storage.addMessage(chatMessage);
+          }
+        }
+        
+        // Update conversation metadata
+        const conversation: ConversationData = {
+          id: conversationId,
+          userId,
+          messages: visibleMessages
+            .filter((msg) => msg.isTextMessage())
+            .map((msg) => ({
+              id: msg.id,
+              conversationId,
+              role: (msg as TextMessage).role as 'user' | 'assistant' | 'system',
+              content: (msg as TextMessage).content,
+              timestamp: new Date(msg.createdAt).getTime(),
+            })),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        
+        await storage.saveConversation(conversation);
+        setLastMessageCount(visibleMessages.length);
+      } catch (error) {
+        console.error('Failed to save new messages:', error);
       }
-    } catch (error) {
-      console.error('Failed to load conversation:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [storage, conversationId]);
+    };
 
-  const clearConversation = useCallback(async () => {
-    if (!storage || !conversation) return;
+    saveNewMessages();
+  }, [visibleMessages, storage, autoSave, isInitialized, lastMessageCount, conversationId, userId]);
 
+  return <>{children}</>;
+}
+
+/**
+ * Hook to get conversation management functions
+ * Note: These are utility functions that work directly with storage
+ */
+export function useConversationManager(userId?: string, dbName?: string) {
+  const [storage, setStorage] = useState<ChatStorage | null>(null);
+  
+  useEffect(() => {
+    const initStorage = async () => {
+      try {
+        const chatStorage = new ChatStorage(dbName);
+        await chatStorage.init();
+        setStorage(chatStorage);
+      } catch (error) {
+        console.error('Failed to initialize storage for conversation manager:', error);
+      }
+    };
+    
+    initStorage();
+    
+    return () => {
+      if (storage) {
+        storage.close();
+      }
+    };
+  }, [dbName]);
+  
+  const clearConversation = useCallback(async (conversationId: string) => {
+    if (!storage) return;
+    
     try {
-      // Clear messages but keep conversation
-      const clearedConversation: ConversationData = {
-        ...conversation,
-        messages: [],
-        updatedAt: Date.now(),
-      };
-      
-      await storage.saveConversation(clearedConversation);
-      setConversation(clearedConversation);
+      const conversation = await storage.loadConversation(conversationId);
+      if (conversation) {
+        const clearedConversation: ConversationData = {
+          ...conversation,
+          messages: [],
+          updatedAt: Date.now(),
+        };
+        await storage.saveConversation(clearedConversation);
+      }
     } catch (error) {
       console.error('Failed to clear conversation:', error);
     }
-  }, [storage, conversation]);
-
-  const deleteConversation = useCallback(async () => {
+  }, [storage]);
+  
+  const deleteConversation = useCallback(async (conversationId: string) => {
     if (!storage) return;
-
+    
     try {
       await storage.deleteConversation(conversationId);
-      setConversation(null);
     } catch (error) {
       console.error('Failed to delete conversation:', error);
     }
-  }, [storage, conversationId]);
-
-  const getUserConversations = useCallback(async () => {
-    if (!storage) return [];
-
+  }, [storage]);
+  
+  const getUserConversations = useCallback(async (): Promise<ConversationData[]> => {
+    if (!storage || !userId) return [];
+    
     try {
       return await storage.getUserConversations(userId);
     } catch (error) {
@@ -180,80 +244,11 @@ export function YaiNexusPersistenceProvider({
       return [];
     }
   }, [storage, userId]);
-
-  const contextValue: PersistenceContextValue = {
-    storage,
-    conversation,
-    isLoading,
-    saveMessage,
-    loadConversation,
+  
+  return {
     clearConversation,
     deleteConversation,
     getUserConversations,
-  };
-
-  return (
-    <PersistenceContext.Provider value={contextValue}>
-      <PersistenceWrapper autoSave={autoSave}>
-        {children}
-      </PersistenceWrapper>
-    </PersistenceContext.Provider>
-  );
-}
-
-/**
- * Wrapper component that handles automatic message persistence
- */
-function PersistenceWrapper({ children, autoSave }: { children: React.ReactNode; autoSave: boolean }) {
-  const persistence = usePersistence();
-
-  useEffect(() => {
-    if (!autoSave || !persistence) return;
-
-    // TODO: Integrate with CopilotKit's message events to auto-save messages
-    // This would require hooking into CopilotKit's internal state management
-    // For now, users need to manually call saveMessage when needed
-    
-  }, [autoSave, persistence]);
-
-  return <>{children}</>;
-}
-
-/**
- * Hook to access persistence functionality
- */
-export function usePersistence(): PersistenceContextValue | null {
-  const context = useContext(PersistenceContext);
-  return context;
-}
-
-/**
- * Hook to get the current conversation
- */
-export function useConversation(): ConversationData | null {
-  const persistence = usePersistence();
-  return persistence?.conversation || null;
-}
-
-/**
- * Hook to save messages manually
- */
-export function useSaveMessage() {
-  const persistence = usePersistence();
-  return persistence?.saveMessage || (async () => {});
-}
-
-/**
- * Hook to get conversation management functions
- */
-export function useConversationManager() {
-  const persistence = usePersistence();
-  
-  return {
-    loadConversation: persistence?.loadConversation || (async () => {}),
-    clearConversation: persistence?.clearConversation || (async () => {}),
-    deleteConversation: persistence?.deleteConversation || (async () => {}),
-    getUserConversations: persistence?.getUserConversations || (async () => []),
-    isLoading: persistence?.isLoading || false,
+    isStorageReady: !!storage,
   };
 }

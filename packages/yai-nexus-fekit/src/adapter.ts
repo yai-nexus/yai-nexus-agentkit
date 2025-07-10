@@ -1,34 +1,42 @@
-import { ServiceAdapter } from "@copilotkit/runtime";
-import { AgUiClient } from "@ag-ui/client";
-import { AgUiMessage, AgUiResponse, AgUiEvent } from "@ag-ui/proto";
+import { CopilotServiceAdapter } from "@copilotkit/runtime";
+import { HttpAgent, Message, BaseEvent, EventType } from "@ag-ui/client";
+import { Observable } from "rxjs";
 
 export interface YaiNexusAdapterConfig {
   backendUrl: string;
 }
 
-export class YaiNexusAdapter implements ServiceAdapter {
+export class YaiNexusAdapter implements CopilotServiceAdapter {
   private backendUrl: string;
-  private client: AgUiClient;
+  private agent: HttpAgent;
 
   constructor(config: YaiNexusAdapterConfig) {
     this.backendUrl = config.backendUrl;
-    this.client = new AgUiClient({
-      baseUrl: this.backendUrl,
+    this.agent = new HttpAgent({
+      url: this.backendUrl,
     });
   }
 
   async process(request: any): Promise<any> {
     try {
       // Convert CopilotKit request to ag-ui-protocol format
-      const agUiMessage = this.convertCopilotToAgUi(request);
+      const messages = this.convertCopilotToAgUi(request);
       
-      // Send request to Python backend
-      const response = await this.client.sendMessage(agUiMessage);
+      // Prepare input for agent
+      const agentInput = {
+        threadId: request.threadId || this.generateId(),
+        runId: request.runId || this.generateId(),
+        messages,
+        tools: [],
+        context: [],
+        state: null,
+      };
       
-      // Convert ag-ui-protocol response back to CopilotKit format
-      const copilotResponse = this.convertAgUiToCopilot(response);
+      // Send request to Python backend and collect response
+      const events$ = this.agent.run(agentInput);
+      const response = await this.collectResponse(events$);
       
-      return copilotResponse;
+      return response;
     } catch (error) {
       console.error('YaiNexusAdapter process error:', error);
       throw error;
@@ -38,18 +46,23 @@ export class YaiNexusAdapter implements ServiceAdapter {
   async *stream(request: any): AsyncIterable<any> {
     try {
       // Convert CopilotKit request to ag-ui-protocol format
-      const agUiMessage = this.convertCopilotToAgUi(request);
+      const messages = this.convertCopilotToAgUi(request);
+      
+      // Prepare input for agent
+      const agentInput = {
+        threadId: request.threadId || this.generateId(),
+        runId: request.runId || this.generateId(),
+        messages,
+        tools: [],
+        context: [],
+        state: null,
+      };
       
       // Get streaming response from Python backend
-      const streamingResponse = await this.client.streamMessage(agUiMessage);
+      const events$ = this.agent.run(agentInput);
       
-      // Process each chunk from the stream
-      for await (const chunk of streamingResponse) {
-        const copilotChunk = this.convertAgUiChunkToCopilot(chunk);
-        if (copilotChunk) {
-          yield copilotChunk;
-        }
-      }
+      // Convert observable to async generator
+      yield* this.observableToAsyncGenerator(events$);
     } catch (error) {
       console.error('YaiNexusAdapter stream error:', error);
       throw error;
@@ -59,83 +72,109 @@ export class YaiNexusAdapter implements ServiceAdapter {
   /**
    * Convert CopilotKit request format to ag-ui-protocol format
    */
-  private convertCopilotToAgUi(copilotRequest: any): AgUiMessage {
-    // Extract messages from CopilotKit request
-    const messages = copilotRequest.messages || [];
+  private convertCopilotToAgUi(copilotRequest: any): Message[] {
+    // Extract ALL messages from CopilotKit request (not just the last one)
+    const copilotMessages = copilotRequest.messages || [];
     
-    // Convert to ag-ui format
-    const agUiMessage: AgUiMessage = {
-      id: copilotRequest.id || this.generateId(),
-      content: this.extractContent(messages),
-      metadata: {
-        timestamp: Date.now(),
-        source: 'copilotkit',
-        userId: copilotRequest.userId || 'anonymous',
-      },
-    };
+    // Convert each message to ag-ui format
+    const agUiMessages: Message[] = copilotMessages.map((msg: any) => ({
+      id: msg.id || this.generateId(),
+      role: msg.role,
+      content: msg.content || '',
+      name: msg.name,
+    }));
 
-    return agUiMessage;
+    return agUiMessages;
   }
 
   /**
    * Convert ag-ui-protocol response to CopilotKit format
    */
-  private convertAgUiToCopilot(agUiResponse: AgUiResponse): any {
+  private convertAgUiToCopilot(agUiResponse: any): any {
     return {
-      id: agUiResponse.id,
-      content: agUiResponse.content,
+      id: agUiResponse.id || this.generateId(),
+      content: agUiResponse.content || '',
       role: 'assistant',
-      metadata: agUiResponse.metadata,
+      metadata: agUiResponse.metadata || {},
     };
   }
 
   /**
-   * Convert ag-ui-protocol streaming chunk to CopilotKit format
+   * Convert ag-ui-protocol streaming event to CopilotKit format
    */
-  private convertAgUiChunkToCopilot(agUiChunk: AgUiEvent): any {
-    switch (agUiChunk.type) {
-      case 'text_chunk':
-        return {
-          type: 'text',
-          content: agUiChunk.data.text,
-        };
-      
-      case 'tool_call':
-        return {
-          type: 'tool_call',
-          name: agUiChunk.data.name,
-          arguments: agUiChunk.data.arguments,
-        };
-      
-      case 'tool_result':
-        return {
-          type: 'tool_result',
-          result: agUiChunk.data.result,
-        };
-      
-      case 'error':
-        return {
-          type: 'error',
-          error: agUiChunk.data.error,
-        };
-      
-      default:
-        // Skip unknown chunk types
-        return null;
-    }
+  private convertAgUiChunkToCopilot(event: BaseEvent): any {
+    // For now, return a simple text format
+    // TODO: Properly handle different event types based on ag-ui protocol
+    return {
+      type: 'content',
+      content: JSON.stringify(event),
+    };
   }
 
   /**
-   * Extract content from CopilotKit messages
+   * Collect response from Observable stream
    */
-  private extractContent(messages: any[]): string {
-    if (!messages || messages.length === 0) {
-      return '';
+  private async collectResponse(events$: Observable<BaseEvent>): Promise<any> {
+    return new Promise((resolve, reject) => {
+      let content = '';
+      
+      events$.subscribe({
+        next: (event) => {
+          // Accumulate text content from events
+          if (event.type === EventType.TEXT_MESSAGE_CHUNK) {
+            content += (event as any).text || '';
+          }
+        },
+        error: reject,
+        complete: () => {
+          resolve({
+            id: this.generateId(),
+            content,
+            role: 'assistant'
+          });
+        }
+      });
+    });
+  }
+
+  /**
+   * Convert Observable to AsyncGenerator
+   */
+  private async *observableToAsyncGenerator(events$: Observable<BaseEvent>): AsyncIterable<any> {
+    const events: BaseEvent[] = [];
+    let completed = false;
+    let error: any = null;
+
+    events$.subscribe({
+      next: (event) => events.push(event),
+      error: (err) => { error = err; },
+      complete: () => { completed = true; }
+    });
+
+    while (!completed && !error) {
+      if (events.length > 0) {
+        const event = events.shift()!;
+        const chunk = this.convertAgUiChunkToCopilot(event);
+        if (chunk) {
+          yield chunk;
+        }
+      } else {
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
     }
-    
-    // Get the last user message
-    const lastMessage = messages[messages.length - 1];
-    return lastMessage.content || '';
+
+    if (error) {
+      throw error;
+    }
+
+    // Process remaining events
+    while (events.length > 0) {
+      const event = events.shift()!;
+      const chunk = this.convertAgUiChunkToCopilot(event);
+      if (chunk) {
+        yield chunk;
+      }
+    }
   }
 
   /**

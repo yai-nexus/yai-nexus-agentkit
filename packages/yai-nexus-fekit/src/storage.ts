@@ -228,10 +228,8 @@ export class ChatStorage {
       await tx.objectStore('conversations').delete(conversationId);
       
       // Delete all messages in the conversation
-      const messages = await tx.objectStore('messages').getAllFromIndex(
-        'by-conversation',
-        conversationId
-      );
+      const messageStore = tx.objectStore('messages');
+      const messages = await messageStore.index('by-conversation').getAll(conversationId);
       
       for (const message of messages) {
         await tx.objectStore('messages').delete(message.id);

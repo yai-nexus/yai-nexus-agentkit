@@ -35,25 +35,29 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
 
   // Create CopilotRuntime instance
   const runtime = new CopilotRuntime({
-    logging: {
-      enabled: options.logging?.enabled ?? true,
-      progressive: options.logging?.progressive ?? true,
-      logger: {
-        logRequest: (data) => {
-          if (options.logging?.enabled) {
-            console.log('[YaiNexus] Request:', JSON.stringify(data, null, 2));
-          }
-        },
-        logResponse: (data) => {
-          if (options.logging?.enabled) {
-            console.log('[YaiNexus] Response:', JSON.stringify(data, null, 2));
-          }
-        },
-        logError: (error) => {
-          console.error('[YaiNexus] Error:', error);
-        },
+    middleware: {
+      onBeforeRequest: async ({ threadId, runId, inputMessages, properties }) => {
+        if (options.logging?.enabled) {
+          console.log('[YaiNexus] Request:', {
+            threadId,
+            runId,
+            inputMessages: inputMessages.length,
+            properties
+          });
+        }
       },
-    },
+      onAfterRequest: async ({ threadId, runId, inputMessages, outputMessages, properties }) => {
+        if (options.logging?.enabled) {
+          console.log('[YaiNexus] Response:', {
+            threadId,
+            runId,
+            inputCount: inputMessages.length,
+            outputCount: outputMessages.length,
+            properties
+          });
+        }
+      }
+    }
   });
 
   // Create and return the Next.js POST handler

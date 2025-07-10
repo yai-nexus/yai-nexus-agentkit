@@ -4,7 +4,13 @@
       "Bash(find:*)",
       "WebFetch(domain:docs.copilotkit.ai)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:www.npmjs.com)"
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm run build:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(rm:*)",
+      "Bash(npm view:*)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
