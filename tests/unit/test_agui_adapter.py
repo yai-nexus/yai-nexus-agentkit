@@ -65,11 +65,11 @@ class TestAGUIAdapterEventTranslation:
     @pytest.mark.asyncio
     async def test_tool_start_event_translation(self, adapter, tool_tracker):
         """测试工具开始事件翻译"""
-        # 构造mock的langgraph事件
+        # 构造mock的langgraph事件（与真实LangGraph事件结构一致）
         mock_event = {
             "event": "on_tool_start",
+            "name": "search_tool",  # 工具名称在顶层
             "data": {
-                "name": "search_tool",
                 "input": {"query": "test query", "max_results": 5},
             },
         }
@@ -103,11 +103,11 @@ class TestAGUIAdapterEventTranslation:
         # 先开始一个工具调用
         tool_tracker.start_call("search_tool")
 
-        # 构造mock的langgraph事件
+        # 构造mock的langgraph事件（与真实LangGraph事件结构一致）
         mock_event = {
             "event": "on_tool_end",
+            "name": "search_tool",  # 工具名称在顶层
             "data": {
-                "name": "search_tool",
                 "output": {"results": ["result1", "result2"], "count": 2},
             },
         }
@@ -154,13 +154,12 @@ class TestAGUIAdapterEventTranslation:
         chunk_event = events[0]
         assert isinstance(chunk_event, TextMessageChunkEvent)
         assert chunk_event.delta == "Hello, world!"
-        assert chunk_event.snapshot == "Hello, world!"
 
     @pytest.mark.asyncio
     async def test_thinking_events_translation(self, adapter, tool_tracker):
         """测试思考事件翻译"""
-        # 测试思考开始事件
-        start_event = {"event": "on_chain_start", "data": {"name": "reasoning_chain"}}
+        # 测试思考开始事件（与真实LangGraph事件结构一致）
+        start_event = {"event": "on_chain_start", "name": "reasoning_chain", "data": {}}
 
         events = []
         async for event in adapter._translate_event(start_event, tool_tracker):
@@ -171,8 +170,8 @@ class TestAGUIAdapterEventTranslation:
         assert isinstance(thinking_start, ThinkingStartEvent)
         assert thinking_start.title == "reasoning_chain"
 
-        # 测试思考结束事件
-        end_event = {"event": "on_chain_end", "data": {"name": "reasoning_chain"}}
+        # 测试思考结束事件（与真实LangGraph事件结构一致）
+        end_event = {"event": "on_chain_end", "name": "reasoning_chain", "data": {}}
 
         events = []
         async for event in adapter._translate_event(end_event, tool_tracker):
@@ -229,19 +228,23 @@ class TestAGUIAdapterIntegration:
     @pytest.mark.asyncio
     async def test_event_stream_adapter_basic_flow(self):
         """测试基本的事件流适配器流程"""
-        # 创建mock的CompiledGraph
-        mock_agent = Mock()
+        # 创建mock的CompiledStateGraph
+        from langgraph.graph.state import CompiledStateGraph
 
-        # 模拟astream_events返回的事件流
+        mock_agent = Mock(spec=CompiledStateGraph)
+
+        # 模拟astream_events返回的事件流（与真实LangGraph事件结构一致）
         mock_events = [
             {"event": "on_chat_model_stream", "data": {"chunk": Mock(content="Hello")}},
             {
                 "event": "on_tool_start",
-                "data": {"name": "test_tool", "input": {"param": "value"}},
+                "name": "test_tool",  # 工具名称在顶层
+                "data": {"input": {"param": "value"}},
             },
             {
                 "event": "on_tool_end",
-                "data": {"name": "test_tool", "output": {"result": "success"}},
+                "name": "test_tool",  # 工具名称在顶层
+                "data": {"output": {"result": "success"}},
             },
         ]
 
@@ -266,9 +269,9 @@ class TestAGUIAdapterIntegration:
         assert len(events) >= 3  # 至少包含开始、一些业务事件、结束
 
         # 验证第一个事件是RunStarted
-        assert events[0]["type"] == "run_started"
+        assert events[0]["type"] == "RUN_STARTED"
         assert events[0]["run_id"] == "test_task"
 
         # 验证最后一个事件是RunFinished
-        assert events[-1]["type"] == "run_finished"
+        assert events[-1]["type"] == "RUN_FINISHED"
         assert events[-1]["run_id"] == "test_task"

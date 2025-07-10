@@ -22,7 +22,8 @@
       "Bash(~/.local/pipx/venvs/pip/bin/ruff check --fix .)",
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:langchain-ai.github.io)"
+      "WebFetch(domain:langchain-ai.github.io)",
+      "Bash(pytest:*)"
     ],
     "deny": []
   }

@@ -30,6 +30,7 @@ from ag_ui.core.events import (
     CustomEvent,
     StepStartedEvent,
     StepFinishedEvent,
+    EventType,
 )
 
 # 导入新的强类型事件枚举和异常
@@ -68,8 +69,9 @@ class ToolCallTracker:
 class Task(BaseModel):
     """任务模型，用于定义Agent任务"""
 
-    id: str
+    id: str  # 作为run_id，每次请求的唯一标识
     query: str
+    thread_id: Optional[str] = None  # 对话线程ID，用于多轮对话上下文追踪
 
 
 class AGUIAdapter:
@@ -96,8 +98,16 @@ class AGUIAdapter:
         tool_tracker = ToolCallTracker()
 
         try:
-            # 步骤 1: 产生 AG-UI 的 "开始" 事件
-            run_started = RunStartedEvent(run_id=task.id)
+            # 步骤 1: 正确处理thread_id和run_id的关系
+            # 如果客户端提供了thread_id，使用它；否则创建新的对话线程
+            effective_thread_id = task.thread_id if task.thread_id else task.id
+
+            # 步骤 2: 产生 AG-UI 的 "开始" 事件
+            run_started = RunStartedEvent(
+                type=EventType.RUN_STARTED,
+                thread_id=effective_thread_id,  # 正确的对话线程ID
+                run_id=task.id,  # 每次运行的唯一标识
+            )
             yield json.dumps(run_started.model_dump())
 
             # 通过 isinstance 判断 agent 是否为 langgraph agent
@@ -124,13 +134,17 @@ class AGUIAdapter:
                     yield event
 
             # 步骤 4: 产生 AG-UI 的 "完成" 事件
-            run_finished = RunFinishedEvent(run_id=task.id)
+            run_finished = RunFinishedEvent(
+                type=EventType.RUN_FINISHED,
+                thread_id=effective_thread_id,  # 使用相同的线程ID
+                run_id=task.id,  # 使用正确的运行ID
+            )
             yield json.dumps(run_finished.model_dump())
 
         except Exception as e:
             logger.error(f"AGUIAdapter error: {e}")
             # 步骤 5: 错误处理
-            run_error = RunErrorEvent(run_id=task.id, error=str(e))
+            run_error = RunErrorEvent(type=EventType.RUN_ERROR, message=str(e))
             yield json.dumps(run_error.model_dump())
 
     async def _translate_event(
@@ -153,32 +167,44 @@ class AGUIAdapter:
             kind = LangGraphEventType(kind_str)
         except ValueError:
             # 宽容处理未知事件类型
-            logger.warning(
-                f"Unknown event type: {kind_str}, data: {event.get('data', {})[:100]}..."
+            event_data_str = str(event.get("data", {}))
+            truncated_data = (
+                event_data_str[:100] + "..."
+                if len(event_data_str) > 100
+                else event_data_str
             )
+            logger.warning(f"Unknown event type: {kind_str}, data: {truncated_data}")
             return
 
         event_data = event.get("data", {})
 
         # 工具调用开始事件
         if kind is LangGraphEventType.ON_TOOL_START:
-            tool_name = event_data.get("name", "unknown")
+            # 工具名称在事件的顶层name字段中，不在data中
+            tool_name = event.get("name", "unknown")
             tool_input = event_data.get("input", {})
 
             # 生成并保存call_id
             call_id = tool_tracker.start_call(tool_name)
 
             # 发送ToolCallStartEvent
-            yield ToolCallStartEvent(tool_call_id=call_id, tool_call_name=tool_name)
+            yield ToolCallStartEvent(
+                type=EventType.TOOL_CALL_START,
+                tool_call_id=call_id,
+                tool_call_name=tool_name,
+            )
 
             # 发送ToolCallArgsEvent
             yield ToolCallArgsEvent(
-                tool_call_id=call_id, delta=json.dumps(tool_input, ensure_ascii=False)
+                type=EventType.TOOL_CALL_ARGS,
+                tool_call_id=call_id,
+                delta=json.dumps(tool_input, ensure_ascii=False),
             )
 
         # 工具调用结束事件
         elif kind is LangGraphEventType.ON_TOOL_END:
-            tool_name = event_data.get("name", "unknown")
+            # 工具名称在事件的顶层name字段中，不在data中
+            tool_name = event.get("name", "unknown")
             tool_output = event_data.get("output")
 
             # 获取并清理call_id
@@ -188,7 +214,7 @@ class AGUIAdapter:
                 return
 
             # 发送ToolCallEndEvent
-            yield ToolCallEndEvent(tool_call_id=call_id)
+            yield ToolCallEndEvent(type=EventType.TOOL_CALL_END, tool_call_id=call_id)
 
             # 发送ToolCallResultEvent
             result_content = (
@@ -196,35 +222,43 @@ class AGUIAdapter:
                 if tool_output is not None
                 else ""
             )
-            yield ToolCallResultEvent(tool_call_id=call_id, content=result_content)
+            yield ToolCallResultEvent(
+                type=EventType.TOOL_CALL_RESULT,
+                message_id=call_id,  # 使用call_id作为message_id
+                tool_call_id=call_id,
+                content=result_content,
+            )
 
         # LLM流式输出事件
         elif kind is LangGraphEventType.ON_CHAT_MODEL_STREAM:
             chunk = event_data.get("chunk")
             if chunk and hasattr(chunk, "content") and chunk.content:
                 yield TextMessageChunkEvent(
+                    type=EventType.TEXT_MESSAGE_CHUNK,
                     delta=chunk.content,
-                    snapshot=chunk.content,  # 注意: 这里应该是累积的快照，但需要状态管理
                 )
 
         # 思考开始事件
         elif kind is LangGraphEventType.ON_CHAIN_START:
-            chain_name = event_data.get("name", "Unknown")
-            yield ThinkingStartEvent(title=chain_name)
+            # name字段在事件的顶层，不在data中
+            chain_name = event.get("name", "Unknown")
+            yield ThinkingStartEvent(type=EventType.THINKING_START, title=chain_name)
 
         # 思考结束事件
         elif kind is LangGraphEventType.ON_CHAIN_END:
-            yield ThinkingEndEvent()
+            yield ThinkingEndEvent(type=EventType.THINKING_END)
 
         # 步骤开始事件
         elif kind is LangGraphEventType.ON_NODE_START:
-            node_name = event_data.get("name", "Unknown")
-            yield StepStartedEvent(name=node_name)
+            # name字段在事件的顶层，不在data中
+            node_name = event.get("name", "Unknown")
+            yield StepStartedEvent(type=EventType.STEP_STARTED, name=node_name)
 
         # 步骤结束事件
         elif kind is LangGraphEventType.ON_NODE_END:
-            node_name = event_data.get("name", "Unknown")
-            yield StepFinishedEvent(name=node_name)
+            # name字段在事件的顶层，不在data中
+            node_name = event.get("name", "Unknown")
+            yield StepFinishedEvent(type=EventType.STEP_FINISHED, name=node_name)
 
         # 自定义事件处理
         elif kind is LangGraphEventType.ON_CUSTOM_EVENT:
@@ -235,7 +269,9 @@ class AGUIAdapter:
                 ui_event_payload = custom_event_data.get("payload")
 
                 # 翻译成AG-UI的CustomEvent
-                yield CustomEvent(name=ui_event_name, value=ui_event_payload)
+                yield CustomEvent(
+                    type=EventType.CUSTOM, name=ui_event_name, value=ui_event_payload
+                )
 
     async def _simple_llm_stream(self, task: Task) -> AsyncGenerator[str, None]:
         """
@@ -249,7 +285,8 @@ class AGUIAdapter:
                 if hasattr(chunk, "content") and chunk.content:
                     accumulated_response += chunk.content
                     text_chunk = TextMessageChunkEvent(
-                        delta=chunk.content, snapshot=accumulated_response
+                        type=EventType.TEXT_MESSAGE_CHUNK,
+                        delta=chunk.content,
                     )
                     yield json.dumps(text_chunk.model_dump())
 
@@ -261,7 +298,9 @@ class AGUIAdapter:
                     response.content if hasattr(response, "content") else str(response)
                 )
 
-                text_chunk = TextMessageChunkEvent(delta=content, snapshot=content)
+                text_chunk = TextMessageChunkEvent(
+                    type=EventType.TEXT_MESSAGE_CHUNK, delta=content
+                )
                 yield json.dumps(text_chunk.model_dump())
 
             except Exception as fallback_e:
