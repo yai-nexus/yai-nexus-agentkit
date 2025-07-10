@@ -32,7 +32,7 @@ dependencies = [
     "pydantic>=2.0",
     "langchain",
     "langchain-core",
-    "langgraph",
+    "langgraph>=0.5.2,<0.6.0",
     "yai-nexus-configuration>=0.1.1",
     # Web framework - core to our FastAPI/AG-UI positioning
     "fastapi",

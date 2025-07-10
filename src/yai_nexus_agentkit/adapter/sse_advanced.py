@@ -5,7 +5,11 @@
 """
 
 import json
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Union
+
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.runnables import Runnable
+from langgraph.graph.state import CompiledGraph
 from pydantic import BaseModel
 
 # 核心依赖 - 直接导入
@@ -30,9 +34,8 @@ class AGUIAdapter:
     将 langgraph 事件流转换为 AG-UI 标准事件流
     """
     
-    def __init__(self, langgraph_agent=None, llm_client=None):
-        self.langgraph_agent = langgraph_agent
-        self.llm_client = llm_client
+    def __init__(self, agent: Union[CompiledGraph, BaseLanguageModel, Runnable]):
+        self.agent = agent
     
     async def event_stream_adapter(self, task: Task) -> AsyncGenerator[str, None]:
         """
@@ -50,52 +53,46 @@ class AGUIAdapter:
             run_started = RunStartedEvent(run_id=task.id)
             yield json.dumps(run_started.model_dump())
             
-            if self.langgraph_agent is None:
-                # 如果没有 langgraph agent，使用简单的 LLM 流式响应
-                if self.llm_client is None:
-                    raise ValueError("AGUIAdapter requires either langgraph_agent or llm_client")
+            # 通过 isinstance 判断 agent 是否为 langgraph agent
+            if isinstance(self.agent, CompiledGraph):
+                # 步骤 2: 调用 langgraph Agent 的流式事件接口
+                async for event in self.agent.astream_events(
+                    {"messages": [("user", task.query)]},
+                    version="v1"
+                ):
+                    kind = event["event"]
+                    
+                    # 步骤 3: 将 langgraph 事件翻译为 AG-UI 事件
+                    if kind == "on_chat_model_stream":
+                        # LLM 的流式输出
+                        content = event["data"]["chunk"].content
+                        if content:
+                            text_chunk = TextMessageChunkEvent(
+                                delta=content,
+                                snapshot=content
+                            )
+                            yield json.dumps(text_chunk.model_dump())
+                    
+                    elif kind == "on_tool_start":
+                        # 工具开始调用
+                        tool_name = event["data"].get("input", {}).get("tool", "unknown")
+                        state_delta = StateDeltaEvent(
+                            key="tool_status",
+                            value=f"calling_{tool_name}"
+                        )
+                        yield json.dumps(state_delta.model_dump())
+                    
+                    elif kind == "on_tool_end":
+                        # 工具调用完成
+                        state_delta = StateDeltaEvent(
+                            key="tool_status",
+                            value="completed"
+                        )
+                        yield json.dumps(state_delta.model_dump())
+            else:
+                # 如果没有 astream_events，则作为普通 LLM 客户端处理
                 async for event in self._simple_llm_stream(task):
                     yield event
-                return
-            
-            # 步骤 2: 调用 langgraph Agent 的流式事件接口
-            async for event in self.langgraph_agent.astream_events(
-                {"messages": [("user", task.query)]}, 
-                version="v1"
-            ):
-                kind = event["event"]
-                
-                # 步骤 3: 将 langgraph 事件翻译为 AG-UI 事件
-                if kind == "on_chat_model_stream":
-                    # LLM 的流式输出
-                    content = event["data"]["chunk"].content
-                    if content:
-                        text_chunk = TextMessageChunkEvent(
-                            delta=content,
-                            snapshot=content
-                        )
-                        yield json.dumps(text_chunk.model_dump())
-                
-                elif kind == "on_tool_start":
-                    # 工具开始调用
-                    tool_name = event["data"].get("input", {}).get("tool", "unknown")
-                    state_delta = StateDeltaEvent(
-                        key="tool_status",
-                        value=f"calling_{tool_name}"
-                    )
-                    yield json.dumps(state_delta.model_dump())
-                
-                elif kind == "on_tool_end":
-                    # 工具调用完成
-                    state_delta = StateDeltaEvent(
-                        key="tool_status", 
-                        value="completed"
-                    )
-                    yield json.dumps(state_delta.model_dump())
-                
-                # 可以添加更多事件类型的处理
-                # elif kind == "on_chain_start":
-                # elif kind == "on_chain_end":
             
             # 步骤 4: 产生 AG-UI 的 "完成" 事件
             run_finished = RunFinishedEvent(run_id=task.id)
@@ -117,7 +114,7 @@ class AGUIAdapter:
         try:
             # 使用 LLM 客户端的流式响应
             accumulated_response = ""
-            async for chunk in self.llm_client.astream(task.query):
+            async for chunk in self.agent.astream(task.query):
                 if hasattr(chunk, 'content') and chunk.content:
                     accumulated_response += chunk.content
                     text_chunk = TextMessageChunkEvent(
@@ -127,9 +124,9 @@ class AGUIAdapter:
                     yield json.dumps(text_chunk.model_dump())
                     
         except Exception:
-            # 如果流式响应失败，尝试同步调用
+            # 如果流式响应失败，尝试异步调用
             try:
-                response = self.llm_client.invoke(task.query)
+                response = await self.agent.ainvoke(task.query)
                 content = response.content if hasattr(response, 'content') else str(response)
                 
                 text_chunk = TextMessageChunkEvent(
@@ -138,14 +135,10 @@ class AGUIAdapter:
                 )
                 yield json.dumps(text_chunk.model_dump())
                 
-            except Exception as sync_e:
-                # 如果同步调用也失败，返回错误信息
-                error_msg = f"LLM调用失败: {str(sync_e)}"
-                text_chunk = TextMessageChunkEvent(
-                    delta=error_msg,
-                    snapshot=error_msg
-                )
-                yield json.dumps(text_chunk.model_dump())
+            except Exception as fallback_e:
+                # 如果异步调用也失败，则向上抛出异常
+                # 让主流程统一处理错误，生成 RunErrorEvent
+                raise fallback_e
     
     def create_fastapi_endpoint(self):
         """
