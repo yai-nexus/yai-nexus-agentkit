@@ -2,7 +2,7 @@
 
 import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
-import { YaiNexusPersistenceProvider } from "@yai-nexus/fekit";
+import { YaiNexusPersistenceProvider } from "@yai-nexus/fekit/client";
 
 export default function Home() {
   const userId = "demo_user_12345";

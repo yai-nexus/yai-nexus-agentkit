@@ -1,6 +1,6 @@
-import { createYaiNexusHandler } from "@yai-nexus/fekit";
+import { createYaiNexusHandler } from "@yai-nexus/fekit/server";
 
-export const POST = createYaiNexusHandler({
+const handler = createYaiNexusHandler({
   backendUrl: process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000/invoke",
   logging: {
     enabled: true,

@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
         child_process: false,
         worker_threads: false,
         fs: false,
+        "fs/promises": false,
         net: false,
         tls: false,
         crypto: false,
