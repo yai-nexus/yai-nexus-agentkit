@@ -1,5 +1,3 @@
 packages:
-  # All packages in the packages directory
-  - 'packages/*'
-  # Only the nextjs-app in the examples directory
-  - 'examples/nextjs-app' 
+  - "packages/*"
+  - "examples/*" 

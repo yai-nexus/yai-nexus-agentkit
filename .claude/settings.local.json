@@ -35,7 +35,13 @@
       "Bash(npm view:*)",
       "Bash(grep:*)",
       "Bash(npm run dev:*)",
-      "Bash(pnpm:*)"
+      "Bash(pnpm:*)",
+      "Bash(git push:*)",
+      "Bash(git remote remove:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm --filter @yai-nexus/fekit build)",
+      "Bash(pnpm --filter nextjs-app build)",
+      "Bash(cp:*)"
     ],
     "deny": []
   }
