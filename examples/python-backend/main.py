@@ -4,14 +4,30 @@ Simple Python backend example for yai-nexus-fekit SDK
 This is a minimal echo server that demonstrates the ag-ui-protocol integration
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import json
 import time
 import asyncio
-from typing import Dict, Any, AsyncGenerator
+from typing import Dict, Any, AsyncGenerator, List, Optional
+import uuid
 from pydantic import BaseModel
+
+# 核心依赖 - 从 ag-ui 导入标准事件和请求模型
+from ag_ui.core import RunAgentInput
+from ag_ui.core.events import (
+    EventType,
+    RunStartedEvent,
+    TextMessageChunkEvent,
+    ToolCallStartEvent,
+    ToolCallArgsEvent,
+    ToolCallEndEvent,
+    ToolCallResultEvent,
+    RunFinishedEvent,
+)
+
+# We will use print for logging for now to ensure visibility with uvicorn
 
 app = FastAPI(
     title="YAI Nexus FeKit Python Backend",
@@ -28,13 +44,31 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class MessageRequest(BaseModel):
-    content: str
-    metadata: Dict[str, Any] = {}
+# --- This is no longer needed, we use RunAgentInput from the library ---
+# class ChatMessage(BaseModel):
+#     """Represents a single message in the chat history."""
+#     role: str
+#     content: str
 
-class AgUiEvent(BaseModel):
-    type: str
-    data: Dict[str, Any]
+# class ChatRequest(BaseModel):
+#     """
+#     Represents the request body sent by the fekit client.
+#     Based on common AG-UI patterns.
+#     """
+#     messages: List[ChatMessage]
+#     threadId: Optional[str] = None
+#     runId: Optional[str] = None
+#     properties: Optional[Dict[str, Any]] = None
+
+
+# --- This is no longer needed, we use RunAgentInput from the library ---
+# class MessageRequest(BaseModel):
+#     content: str
+#     metadata: Dict[str, Any] = {}
+
+# class AgUiEvent(BaseModel):
+#     type: str
+#     data: Dict[str, Any]
 
 @app.get("/")
 async def root():
@@ -48,92 +82,105 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
-async def generate_streaming_response(content: str) -> AsyncGenerator[str, None]:
+async def generate_streaming_response(content: str, run_id: str, thread_id: str) -> AsyncGenerator[str, None]:
     """
-    Generate a streaming response that simulates an AI agent
-    responding with ag-ui-protocol events
+    (Restored) Generate a streaming response that simulates an AI agent
+    responding with ag-ui-protocol events, using official event models.
     """
+    print(f"Generating full response for content: '{content}'")
     
     # Start event
-    start_event = AgUiEvent(
-        type="start",
-        data={"message_id": f"msg_{int(time.time())}"}
+    start_event = RunStartedEvent(
+        type=EventType.RUN_STARTED,
+        run_id=run_id,
+        thread_id=thread_id
     )
     yield f"data: {start_event.model_dump_json()}\n\n"
-    
-    # Simulate thinking delay
     await asyncio.sleep(0.5)
     
     # Simulate streaming text response
-    response_text = f"Echo: {content}\n\nThis is a demonstration of the yai-nexus-fekit SDK. Your message was received and processed by the Python backend using ag-ui-protocol."
-    
+    response_text = f"Echo: {content}\n\nThis is a demonstration using ag_ui.core.events. Your message was received and processed."
     words = response_text.split()
     for i, word in enumerate(words):
-        # Text chunk event
-        chunk_event = AgUiEvent(
-            type="text_chunk",
-            data={
-                "text": word + " ",
-                "index": i,
-                "total": len(words)
-            }
+        chunk_event = TextMessageChunkEvent(
+            type=EventType.TEXT_MESSAGE_CHUNK,
+            delta=word + " "
         )
         yield f"data: {chunk_event.model_dump_json()}\n\n"
-        
-        # Small delay between words for realistic streaming effect
         await asyncio.sleep(0.1)
     
-    # Tool call demonstration (optional)
+    # Tool call demonstration
     if "tool" in content.lower() or "function" in content.lower():
-        tool_call_event = AgUiEvent(
-            type="tool_call",
-            data={
-                "name": "echo_tool",
-                "arguments": {"input": content}
-            }
+        tool_call_id = f"tool_call_{uuid.uuid4().hex}"
+        # ... (rest of tool call logic from before)
+        tool_call_event = ToolCallStartEvent(
+            type=EventType.TOOL_CALL_START,
+            tool_call_id=tool_call_id,
+            tool_call_name="echo_tool"
         )
         yield f"data: {tool_call_event.model_dump_json()}\n\n"
-        
+        await asyncio.sleep(0.1)
+
+        args_event = ToolCallArgsEvent(
+            type=EventType.TOOL_CALL_ARGS,
+            tool_call_id=tool_call_id,
+            delta=json.dumps({"input": content})
+        )
+        yield f"data: {args_event.model_dump_json()}\n\n"
         await asyncio.sleep(0.3)
         
-        tool_result_event = AgUiEvent(
-            type="tool_result",
-            data={
-                "result": f"Tool executed successfully with input: {content}"
-            }
+        end_event = ToolCallEndEvent(
+             type=EventType.TOOL_CALL_END,
+             tool_call_id=tool_call_id
         )
-        yield f"data: {tool_result_event.model_dump_json()}\n\n"
-    
+        yield f"data: {end_event.model_dump_json()}\n\n"
+        await asyncio.sleep(0.1)
+
+        result_event = ToolCallResultEvent(
+            type=EventType.TOOL_CALL_RESULT,
+            tool_call_id=tool_call_id,
+            message_id=tool_call_id, # Simplified for example
+            content=f"Tool executed successfully with input: {content}"
+        )
+        yield f"data: {result_event.model_dump_json()}\n\n"
+
     # End event
-    end_event = AgUiEvent(
-        type="end",
-        data={
-            "status": "completed",
-            "token_count": len(words),
-            "processing_time": len(words) * 0.1 + 0.5
-        }
+    end_event = RunFinishedEvent(
+        type=EventType.RUN_FINISHED,
+        run_id=run_id,
+        thread_id=thread_id,
     )
     yield f"data: {end_event.model_dump_json()}\n\n"
+    print(f"Finished generating full response for run_id: {run_id}")
+
 
 @app.post("/invoke")
-async def invoke_agent(request: MessageRequest):
+async def invoke_agent(request: RunAgentInput):
     """
-    Main endpoint that receives messages from the frontend
-    and returns streaming ag-ui-protocol responses
+    Main endpoint that receives AG-UI standard RunAgentInput
+    and returns streaming ag-ui-protocol responses.
     """
     try:
-        content = request.content.strip()
-        
+        print(f"Received request: {request.model_dump_json(indent=2)}")
+
+        if not request.messages:
+            raise HTTPException(status_code=400, detail="Request body must contain 'messages' array.")
+
+        last_message = request.messages[-1]
+        content = last_message.content.strip()
+
         if not content:
-            raise HTTPException(status_code=400, detail="Message content cannot be empty")
+            raise HTTPException(status_code=400, detail="The last message must have non-empty 'content'.")
+
+        print(f"Extracted content: {content}")
         
-        print(f"Received message: {content}")
-        print(f"Metadata: {request.metadata}")
-        
-        # Return streaming response
+        # Use IDs from the request, or generate new ones
+        run_id = request.run_id or f"run_{uuid.uuid4().hex}"
+        thread_id = request.thread_id or f"thread_{uuid.uuid4().hex}"
+
         return StreamingResponse(
-            generate_streaming_response(content),
-            media_type="text/plain",
+            generate_streaming_response(content, run_id=run_id, thread_id=thread_id),
+            media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
@@ -143,7 +190,17 @@ async def invoke_agent(request: MessageRequest):
         
     except Exception as e:
         print(f"Error processing request: {e}")
+        # Also log the full exception for debugging
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+
+# --- The old /test endpoint, kept for simple checks ---
+class MessageRequest(BaseModel):
+    content: str
+    metadata: Dict[str, Any] = {}
 
 @app.post("/test")
 async def test_endpoint(request: MessageRequest):
@@ -168,5 +225,5 @@ if __name__ == "__main__":
         host="127.0.0.1",
         port=8000,
         reload=True,
-        log_level="info"
+        log_level="info"  # Restore uvicorn's logger
     )

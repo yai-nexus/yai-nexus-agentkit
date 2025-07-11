@@ -1,5 +1,5 @@
 ---
-globs: packages/agentkit/**
+globs: packages/agentkit/**,examples/python-backend/**
 alwaysApply: false
 ---
 # Python 开源项目开发规则
