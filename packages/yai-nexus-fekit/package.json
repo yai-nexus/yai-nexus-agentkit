@@ -30,14 +30,14 @@
   "peerDependencies": {
     "@copilotkit/react-core": "^1.9.1",
     "@copilotkit/react-ui": "^1.9.1",
-    "next": ">=14.0.0",
-    "react": "^18 || ^19"
+    "next": "^15.3.5",
+    "react": "^19.1.0"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
+    "@types/react": "^19.1.0",
     "@copilotkit/react-core": "^1.9.1",
-    "next": "^14.2.3",
-    "react": "^19.0.0",
+    "next": "^15.3.5",
+    "react": "^19.1.0",
     "tsup": "^8.0.2",
     "typescript": "^5.4.5"
   },
