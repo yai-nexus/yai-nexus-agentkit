@@ -1,85 +1,87 @@
 # YAI Nexus Monorepo
 
-A unified monorepo containing both backend and frontend components for the YAI Nexus ecosystem - building AI applications with multi-LLM support and modern web interfaces.
+YAI Nexus 生态系统的统一 Monorepo，包含用于构建具有多 LLM 支持和现代 Web 界面的 AI 应用的后端和前端组件。
 
-## 🏗️ Project Structure
+## 🏗️ 项目结构
 
 ```
-/ (monorepo root)
+/ (monorepo 根目录)
 ├── packages/
-│   ├── agentkit/          # Python backend toolkit
-│   └── fekit/             # TypeScript frontend SDK
+│   ├── agentkit/          # Python 后端工具包
+│   └── fekit/             # TypeScript 前端 SDK
 ├── examples/
-│   ├── nextjs-app/        # Next.js 15 example application
-│   └── python-backend/    # Python backend example
-├── package.json           # Root workspace configuration
-├── pnpm-workspace.yaml    # pnpm workspace config
-└── tsconfig.base.json     # Shared TypeScript config
+│   ├── nextjs-app/        # Next.js 15 示例应用
+│   └── python-backend/    # Python 后端示例
+├── package.json           # 根工作区配置
+├── pnpm-workspace.yaml    # pnpm 工作区配置
+└── tsconfig.base.json     # 共享 TypeScript 配置
 ```
 
-## 🚀 Quick Start
+## 🚀 快速上手
 
-### Prerequisites
+### 环境要求
 
-- **Python 3.8+** for backend development
-- **Node.js 18+** and **pnpm** for frontend development
+- **Python 3.8+** 用于后端开发
+- **Node.js 18+** 和 **pnpm** 用于前端开发
 
-### Installation
+### 安装步骤
 
 ```bash
-# Clone the repository
+# 克隆仓库
 git clone https://github.com/yai-nexus/yai-nexus-agentkit.git
 cd yai-nexus-agentkit
 
-# Install all workspace dependencies
+# 安装所有工作区的依赖
 pnpm install
 
-# Install backend dependencies
+# 安装后端开发依赖
+# 这将以可编辑模式安装 agentkit 及其所有可选依赖
 cd packages/agentkit
 pip install -e ".[all]"
 ```
 
-### Development
+### 开发运行
 
-**Backend Development:**
+**后端开发:**
 ```bash
 cd packages/agentkit
 
-# Run tests
+# 运行测试
 pytest
 
-# Format code
+# 格式化代码
 black .
 
-# Lint code
+# 检查代码风格
 ruff check .
 
-# Run FastAPI example
-python -m examples.fast_api_app.main
+# 运行 FastAPI 示例
+# 注意：此示例旨在通过 python 命令直接启动
+python examples/fast_api_app/main.py
 ```
 
-**Frontend Development:**
+**前端开发:**
 ```bash
-# Build frontend SDK
+# 构建前端 SDK
 pnpm --filter @yai-nexus/fekit build
 
-# Run Next.js example app
+# 运行 Next.js 示例应用
 pnpm --filter nextjs-app dev
 ```
 
-## 📦 Packages
+## 📦 核心包
 
-### 🐍 Backend: `packages/agentkit/`
+### 🐍 后端: `packages/agentkit/`
 
-A Python toolkit for building AI applications with multi-LLM support and extensible architecture.
+一个用于构建具有多LLM支持和可扩展架构的AI应用的Python工具包。
 
-**Key Features:**
-- **Multi-LLM Support**: OpenAI, Anthropic, ZhipuAI, Tongyi, OpenRouter
-- **Factory Pattern**: Type-safe LLM client creation
-- **Configuration-driven**: JSON-based config with environment variable support
-- **Extensible Architecture**: Clean abstractions for persistence, orchestration, and adapters
+**主要特性:**
+- **多LLM支持**: OpenAI, Anthropic, ZhipuAI, Tongyi, OpenRouter
+- **工厂模式**: 类型安全的LLM客户端创建
+- **配置驱动**: 基于JSON的配置，支持环境变量
+- **可扩展架构**: 清晰的持久化、编排和适配器抽象
 
-**Quick Example:**
+**快速示例:**
 ```python
 from yai_nexus_agentkit import create_llm, OpenAIModel
 
@@ -89,58 +91,58 @@ config = {
     "api_key": "sk-..."
 }
 llm = create_llm(config)
-response = llm.invoke("Hello, world!")
+response = llm.invoke("你好，世界！")
 ```
 
-### 🌐 Frontend: `packages/fekit/`
+### 🌐 前端: `packages/fekit/`
 
-A TypeScript SDK for integrating AI capabilities into Next.js applications with CopilotKit.
+一个用于将AI功能集成到Next.js应用程序的TypeScript SDK。
 
-**Key Features:**
-- **Next.js Integration**: Seamless integration with Next.js 14+
-- **TypeScript First**: Full type safety and IntelliSense support
-- **CopilotKit Compatible**: Built for modern AI-powered UX patterns
-- **Dual Module Support**: Both CommonJS and ESM exports
+**主要特性:**
+- **Next.js 集成**: 与 Next.js 14+ 无缝集成
+- **TypeScript 优先**: 完全的类型安全和智能感知支持
+- **兼容 CopilotKit**: 为现代AI驱动的UX模式而构建
+- **双模块支持**: 同时支持 CommonJS 和 ESM
 
-**Quick Example:**
+**快速示例:**
 ```typescript
 import { ... } from '@yai-nexus/fekit';
 
-// Use in your Next.js application
-// Integration with yai-nexus-agentkit backend
+// 在你的 Next.js 应用中使用
+// 以此来集成 yai-nexus-agentkit 后端
 ```
 
-## 🎯 Examples
+## 🎯 示例应用
 
-### Next.js Application (`examples/nextjs-app/`)
+### Next.js 应用 (`examples/nextjs-app/`)
 
-A modern Next.js 15 application showcasing frontend AI integration:
+一个展示前端AI集成的现代Next.js 15应用：
 
-- **React 19** with latest features
-- **TailwindCSS 4** for styling
-- **Turbopack** for fast development
-- **CopilotKit** integration ready
+- **React 19**
+- **TailwindCSS 4**
+- **Turbopack**
+- 已集成 **CopilotKit**
 
 ```bash
 cd examples/nextjs-app
-npm run dev    # Start development server
-npm run build  # Build for production
+pnpm dev    # 启动开发服务器
+pnpm build  # 构建生产版本
 ```
 
-### Python Backend (`examples/python-backend/`)
+### Python 后端 (`examples/python-backend/`)
 
-Example Python backend demonstrating agentkit usage:
+演示 `agentkit` 用法的Python后端示例：
 
 ```bash
 cd examples/python-backend
 python main.py
 ```
 
-## 🔧 Configuration
+## 🔧 配置
 
-### Environment Variables
+### 环境变量
 
-Set up the following environment variables based on your LLM providers:
+根据你使用的LLM提供商，设置以下环境变量：
 
 ```bash
 # OpenAI
@@ -149,16 +151,16 @@ export OPENAI_API_KEY="sk-..."
 # OpenRouter
 export OPENROUTER_API_KEY="sk-or-..."
 
-# Tongyi (Alibaba)
+# 阿里云通义千问
 export DASHSCOPE_API_KEY="sk-..."
 
-# Optional: Specify default model
+# 可选：指定默认使用的模型
 export MODEL_TO_USE="gpt-4o"
 ```
 
-### LLM Configuration
+### LLM 配置
 
-Backend LLM configurations are stored in `packages/agentkit/configs/DEFAULT_GROUP/llms.json`:
+后端 LLM 配置存储在 `packages/agentkit/configs/DEFAULT_GROUP/llms.json` 中：
 
 ```json
 {
@@ -173,65 +175,50 @@ Backend LLM configurations are stored in `packages/agentkit/configs/DEFAULT_GROU
 }
 ```
 
-## 🧪 Testing
+## 🧪 测试
 
-**Backend Tests:**
+**后端测试:**
 ```bash
 cd packages/agentkit
-pytest                    # Run all tests
-pytest --cov             # Run with coverage
+pytest         # 运行所有测试
+pytest --cov   # 运行并检查测试覆盖率
 ```
 
-**Frontend Tests:**
+**前端测试:**
 ```bash
-pnpm --filter @yai-nexus/fekit test    # Run SDK tests
-pnpm --filter nextjs-app test           # Run app tests
+pnpm --filter @yai-nexus/fekit test    # 运行 SDK 测试
+pnpm --filter nextjs-app test          # 运行应用测试
 ```
 
-## 🔨 Building
+## 🔨 构建
 
-**Build All Packages:**
+**构建所有包:**
 ```bash
-pnpm --filter packages/* build
+pnpm --filter 'packages/*' build
 ```
 
-**Build Specific Package:**
+**构建特定包:**
 ```bash
 pnpm --filter @yai-nexus/fekit build
 pnpm --filter nextjs-app build
 ```
 
-## 📚 Documentation
+## 🤝 贡献指南
 
-- **Backend Documentation**: See `packages/agentkit/README.md`
-- **Frontend Documentation**: See `packages/fekit/README.md`
-- **Development Guide**: See `CLAUDE.md` for detailed development instructions
+我们欢迎各种形式的贡献！
 
-## 🤝 Contributing
+1.  Fork 本仓库
+2.  创建你的功能分支: `git checkout -b feature/amazing-feature`
+3.  提交你的修改: `git commit -m 'Add amazing feature'`
+4.  推送至分支: `git push origin feature/amazing-feature`
+5.  提交一个 Pull Request
 
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Commit your changes: `git commit -m 'Add amazing feature'`
-4. Push to the branch: `git push origin feature/amazing-feature`
-5. Open a Pull Request
+### 开发工作流
 
-### Development Workflow
+- **后端代码规范**: 使用 `black` 进行格式化，使用 `ruff` 进行代码检查。
+- **前端代码规范**: 使用 `prettier` 和 `eslint`。
+- **提交前**: 确保运行并通过所有相关测试。
 
-- **Backend changes**: Work in `packages/agentkit/`
-- **Frontend changes**: Work in `packages/fekit/`
-- **Example updates**: Work in `examples/`
-- **Run tests** before submitting PRs
-- **Follow code style** (black, ruff for Python; prettier, eslint for TypeScript)
+## 📄 许可证
 
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🔗 Links
-
-- **Issues**: [GitHub Issues](https://github.com/yai-nexus/yai-nexus-agentkit/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yai-nexus/yai-nexus-agentkit/discussions)
-
----
-
-Made with ❤️ by the YAI Nexus team
+本项目基于 MIT 许可证 - 详情请参阅 [LICENSE](LICENSE) 文件。

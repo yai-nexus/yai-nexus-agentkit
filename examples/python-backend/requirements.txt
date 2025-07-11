@@ -4,3 +4,4 @@ pydantic>=2.11.2
 python-multipart==0.0.20
 ag-ui-protocol
 -e ../../packages/agentkit
+yai-nexus-logger
