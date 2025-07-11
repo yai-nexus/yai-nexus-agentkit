@@ -23,7 +23,11 @@
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:langchain-ai.github.io)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(git mv:*)",
+      "Bash(git remote add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": []
   }
