@@ -33,7 +33,7 @@ export default function Home() {
           </div>
           
           <div className="flex-1 overflow-hidden">
-            <CopilotKit url="/api/copilotkit">
+            <CopilotKit runtimeUrl="/api/copilotkit">
               <YaiNexusPersistenceProvider
                 userId={userId}
                 conversationId={conversationId}

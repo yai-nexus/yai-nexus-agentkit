@@ -7,3 +7,5 @@ const handler = createYaiNexusHandler({
     progressive: true,
   },
 });
+
+export const POST = handler;
