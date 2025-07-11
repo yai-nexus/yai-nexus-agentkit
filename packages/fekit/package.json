@@ -1,0 +1,57 @@
+{
+  "name": "@yai-nexus/fekit",
+  "version": "0.1.0",
+  "description": "Next.js SDK for yai-nexus-agentkit, integrating with CopilotKit.",
+  "exports": {
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.mjs",
+      "require": "./dist/client.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "import": "./dist/server.mjs",
+      "require": "./dist/server.js"
+    }
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "keywords": [
+    "next.js",
+    "react",
+    "copilotkit",
+    "ai",
+    "agent"
+  ],
+  "author": "YAI Nexus Team",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@ag-ui/client": "0.0.31",
+    "@copilotkit/runtime": "^1.9.1",
+    "@copilotkit/runtime-client-gql": "^1.9.1",
+    "idb": "^8.0.0",
+    "rxjs": "^7.8.1"
+  },
+  "peerDependencies": {
+    "@copilotkit/react-core": "^1.9.1",
+    "@copilotkit/react-ui": "^1.9.1",
+    "next": "^15.3.5",
+    "react": "^19.1.0"
+  },
+  "devDependencies": {
+    "@copilotkit/react-core": "^1.9.1",
+    "@types/react": "^19.1.0",
+    "next": "^15.3.5",
+    "react": "^19.1.0",
+    "tsup": "^8.0.2",
+    "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

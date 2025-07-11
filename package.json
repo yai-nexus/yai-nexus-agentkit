@@ -1,0 +1,17 @@
+{
+  "name": "yai-nexus-fekit-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for yai-nexus-fekit SDK and its example applications.",
+  "scripts": {
+    "dev:sdk": "npm run dev --workspace=@yai-nexus/fekit",
+    "build:sdk": "npm run build --workspace=@yai-nexus/fekit",
+    "dev:example:next": "npm run dev --workspace=nextjs-app"
+  },
+  "workspaces": [
+    "packages/*",
+    "examples/*"
+  ],
+  "author": "YAI Nexus Team",
+  "license": "MIT"
+} 
