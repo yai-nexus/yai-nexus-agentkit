@@ -9,6 +9,9 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
+    banner: {
+      js: '"use client";',
+    },
   },
   {
     entry: {
@@ -17,6 +20,5 @@ export default defineConfig([
     format: ["cjs", "esm"],
     dts: true,
     sourcemap: true,
-    clean: false, // Do not clean for the second build
   },
 ]); 

@@ -5,11 +5,13 @@
   "exports": {
     "./client": {
       "types": "./dist/client.d.ts",
+      "react-server": "./dist/client.mjs",
       "import": "./dist/client.mjs",
       "require": "./dist/client.js"
     },
     "./server": {
       "types": "./dist/server.d.ts",
+      "react-server": "./dist/server.mjs",
       "import": "./dist/server.mjs",
       "require": "./dist/server.js"
     }

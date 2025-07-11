@@ -1,7 +1,7 @@
 ---
-alwaysApply: true
+globs: packages/agentkit/**
+alwaysApply: false
 ---
-
 # Python 开源项目开发规则
 
 ## 1. 代码风格与质量
@@ -126,4 +126,3 @@ alwaysApply: true
 - 使用链式调用提升用户体验
 - 提供合理的默认值
 - 支持上下文管理器(如有需要)
-
