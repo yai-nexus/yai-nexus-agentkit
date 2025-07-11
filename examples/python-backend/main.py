@@ -27,7 +27,22 @@ from ag_ui.core.events import (
     RunFinishedEvent,
 )
 
-# We will use print for logging for now to ensure visibility with uvicorn
+# 日志系统 - 使用 yai-nexus-logger
+from yai_nexus_logger import get_logger, init_logging
+from yai_nexus_logger.configurator import LoggerConfigurator
+import os
+
+# 初始化日志系统
+log_level = "DEBUG" if os.getenv("LOG_LEVEL", "INFO").upper() == "DEBUG" else "INFO"
+log_file_path = "../../logs/python-backend.log"
+
+configurator = LoggerConfigurator(level=log_level)
+configurator.with_console_handler()  # 控制台输出
+configurator.with_file_handler(log_file_path)  # 文件输出
+configurator.with_uvicorn_integration()  # Uvicorn 集成
+
+init_logging(configurator)
+logger = get_logger(__name__)
 
 app = FastAPI(
     title="YAI Nexus FeKit Python Backend",
@@ -87,7 +102,12 @@ async def generate_streaming_response(content: str, run_id: str, thread_id: str)
     (Restored) Generate a streaming response that simulates an AI agent
     responding with ag-ui-protocol events, using official event models.
     """
-    print(f"Generating full response for content: '{content}'")
+    logger.info("Generating streaming response", extra={
+        "content": content, 
+        "run_id": run_id, 
+        "thread_id": thread_id,
+        "trace_id": thread_id  # 使用 thread_id 作为 trace_id
+    })
     
     # Start event
     start_event = RunStartedEvent(
@@ -151,7 +171,11 @@ async def generate_streaming_response(content: str, run_id: str, thread_id: str)
         thread_id=thread_id,
     )
     yield f"data: {end_event.model_dump_json()}\n\n"
-    print(f"Finished generating full response for run_id: {run_id}")
+    logger.info("Finished generating streaming response", extra={
+        "run_id": run_id,
+        "thread_id": thread_id,
+        "trace_id": thread_id
+    })
 
 
 @app.post("/invoke")
@@ -161,7 +185,20 @@ async def invoke_agent(request: RunAgentInput):
     and returns streaming ag-ui-protocol responses.
     """
     try:
-        print(f"Received request: {request.model_dump_json(indent=2)}")
+        # 设置追踪上下文
+        trace_id = request.thread_id or request.run_id
+        if trace_id:
+            # 如果 yai-nexus-logger 支持 trace context，可以这样设置
+            # trace_context.set_trace_id(trace_id)  # 这需要 yai-nexus-logger 的支持
+            pass
+        
+        logger.info("Received agent invoke request", extra={
+            "message_count": len(request.messages),
+            "run_id": request.run_id,
+            "thread_id": request.thread_id,
+            "trace_id": trace_id
+        })
+        logger.debug("Full request details", extra={"request": request.model_dump()})
 
         if not request.messages:
             raise HTTPException(status_code=400, detail="Request body must contain 'messages' array.")
@@ -172,7 +209,12 @@ async def invoke_agent(request: RunAgentInput):
         if not content:
             raise HTTPException(status_code=400, detail="The last message must have non-empty 'content'.")
 
-        print(f"Extracted content: {content}")
+        logger.info("Processing message content", extra={
+            "content": content,
+            "trace_id": trace_id,
+            "run_id": request.run_id,
+            "thread_id": request.thread_id
+        })
         
         # Use IDs from the request, or generate new ones
         run_id = request.run_id or f"run_{uuid.uuid4().hex}"
@@ -189,10 +231,13 @@ async def invoke_agent(request: RunAgentInput):
         )
         
     except Exception as e:
-        print(f"Error processing request: {e}")
-        # Also log the full exception for debugging
-        import traceback
-        traceback.print_exc()
+        logger.error("Error processing request", extra={
+            "error": str(e),
+            "error_type": type(e).__name__,
+            "trace_id": trace_id if 'trace_id' in locals() else None,
+            "run_id": getattr(request, 'run_id', None) if 'request' in locals() else None,
+            "thread_id": getattr(request, 'thread_id', None) if 'request' in locals() else None
+        }, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -216,14 +261,14 @@ async def test_endpoint(request: MessageRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    print("Starting YAI Nexus FeKit Python Backend...")
-    print("Backend will be available at: http://127.0.0.1:8000")
-    print("API documentation at: http://127.0.0.1:8000/docs")
+    logger.info("Starting YAI Nexus FeKit Python Backend...")
+    logger.info("Backend will be available at: http://127.0.0.1:8000")
+    logger.info("API documentation at: http://127.0.0.1:8000/docs")
     
     uvicorn.run(
         "main:app",
         host="127.0.0.1",
         port=8000,
         reload=True,
-        log_level="info"  # Restore uvicorn's logger
+        log_level="info"
     )

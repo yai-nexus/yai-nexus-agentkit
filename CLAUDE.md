@@ -36,11 +36,11 @@ pytest
 # Run tests with coverage
 pytest --cov
 
-# Run FastAPI example application
-python -m examples.fast_api_app.main
+# Run single test file
+pytest tests/unit/test_specific_file.py
 
-# Or with uvicorn directly
-uvicorn examples.fast_api_app.main:app --reload
+# Run specific test function
+pytest tests/unit/test_specific_file.py::test_function_name
 ```
 
 ### Frontend Package (`packages/fekit/`)
@@ -55,10 +55,22 @@ npm run dev      # Build in watch mode
 
 ```bash
 cd examples/nextjs-app
-npm run dev      # Start development server with Turbopack
+npm run dev      # Start development server
 npm run build    # Build for production
 npm run start    # Start production server
 npm run lint     # Run ESLint
+```
+
+### Python Backend Example (`examples/python-backend/`)
+
+```bash
+cd examples/python-backend
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the backend server (FastAPI with ag-ui-protocol integration)
+python main.py
 ```
 
 ### Monorepo Management
@@ -119,7 +131,7 @@ This is a Python toolkit for building AI applications with multi-LLM support and
 
 **Dependencies**
 The SDK depends on the ag-ui ecosystem:
-- `@ag-ui/client`, `@ag-ui/core`, `@ag-ui/encoder`, `@ag-ui/proto` (v0.0.31)
+- `@ag-ui/client`, `@ag-ui/core`, `@ag-ui/encoder`, `@ag-ui/proto` (v0.0.28+)
 
 ## Key Design Patterns
 
@@ -146,9 +158,13 @@ The backend project uses optional dependencies for different LLM providers and f
 
 Required environment variables depend on which LLM providers you use:
 - `OPENAI_API_KEY`: For OpenAI models
-- `OPENROUTER_API_KEY`: For OpenRouter models
+- `OPENROUTER_API_KEY`: For OpenRouter models  
 - `DASHSCOPE_API_KEY`: For Tongyi models
+- `ANTHROPIC_API_KEY`: For Anthropic models
+- `ZHIPUAI_API_KEY`: For ZhipuAI models
 - `MODEL_TO_USE`: (Optional) Specific model to use from config
+
+For the Python backend example (`examples/python-backend/`), ensure you have the required API keys set based on which LLM providers are configured in your `llms.json`.
 
 ## Usage Examples
 
@@ -192,26 +208,52 @@ import { ... } from '@yai-nexus/fekit';
 **Backend (`packages/agentkit/`)**
 - `src/yai_nexus_agentkit/llm/factory.py` - Main LLM factory implementation
 - `configs/DEFAULT_GROUP/llms.json` - LLM configurations
-- `examples/llm_usage_demo.py` - Complete usage demonstration
+- `src/yai_nexus_agentkit/__init__.py` - Public API exports
 
 **Frontend (`packages/fekit/`)**
 - `src/index.ts` - Main entry point, re-exports from @ag-ui/proto
-- `src/handler.ts` - Currently empty, likely for future CopilotKit integration
+- `src/client.ts` - Client-side exports for Next.js components
+- `src/server.ts` - Server-side exports for API routes
 - `tsup.config.ts` - Build configuration for the SDK
+
+**Examples**
+- `examples/nextjs-app/` - Complete Next.js 15 application with CopilotKit integration
+- `examples/python-backend/main.py` - FastAPI backend with ag-ui-protocol and yai-nexus-agentkit integration
 
 **Root Configuration**
 - `tsconfig.base.json` - Shared TypeScript configuration
 - `pnpm-workspace.yaml` - Workspace configuration
 - `package.json` - Root package configuration
 
+## Code Quality Standards
+
+### Python Development (Backend)
+
+**Required Tools:**
+- **Code formatting**: Use `black` for all Python code formatting
+- **Linting**: Use `ruff` for static analysis and import sorting
+- **Type hints**: Always use type hints for function parameters and return values
+
+**Testing Requirements:**
+- **Coverage target**: Maintain 85%+ test coverage using `pytest-cov`
+- **Test types**: Unit tests (with mocks), integration tests (no mocks, logs to `logs/` directory), example tests
+- **Naming**: Test files as `test_*.py`, functions as `test_具体功能描述`
+
+**Development Workflow:**
+- Use `pre-commit` hooks to automatically run `black` and `ruff` before commits
+- All custom exceptions should inherit from a base `AgentKitError` class
+- Examples in `examples/` directory must be runnable independently
+
+### Frontend Development
+
+**Build Process:**
+- Always build `@yai-nexus/fekit` SDK before running Next.js app: `pnpm --filter @yai-nexus/fekit build`
+- Use separate client/server imports: `@yai-nexus/fekit/client` for client components, `@yai-nexus/fekit/server` for API routes
+- Must use `pnpm` from monorepo root, never use `npm` or `yarn` in subdirectories
+
 ## Development Notes
 
-- The frontend SDK is in early development stage with many placeholder files
-- SDK is designed to integrate yai-nexus-agentkit with CopilotKit in Next.js applications
-- Example application uses latest Next.js 15 with React 19 and TailwindCSS 4
-- The backend testing uses pytest with configuration in `packages/agentkit/pyproject.toml`
-- Python path includes both root and `src` directories for testing
-
-## Legacy Code
-
-The `old/` directory contains previous implementation (`lucas_ai_core`) that's being refactored. Don't modify files in this directory.
+- The frontend SDK uses separated client/server entry points to prevent Node.js modules from being bundled in client code
+- Example application uses Next.js 15 with React 19 and TailwindCSS 4
+- Python backend uses FastAPI with ag-ui-protocol for streaming AI responses
+- All Python projects use `pyproject.toml` with pytest configured for both root and `src` paths

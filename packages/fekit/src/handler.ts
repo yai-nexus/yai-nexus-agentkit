@@ -12,6 +12,10 @@ export interface CreateYaiNexusHandlerOptions {
     enabled?: boolean;
     progressive?: boolean;
   };
+  tracing?: {
+    enabled?: boolean;
+    generateTraceId?: () => string;
+  };
 }
 
 /**
@@ -20,24 +24,44 @@ export interface CreateYaiNexusHandlerOptions {
  */
 class YaiNexusServiceAdapter implements CopilotServiceAdapter {
   private httpAgent: HttpAgent;
+  private options: CreateYaiNexusHandlerOptions;
 
-  constructor(backendUrl: string) {
+  constructor(backendUrl: string, options: CreateYaiNexusHandlerOptions) {
     this.httpAgent = new HttpAgent({
       url: backendUrl,
       description: "YAI Nexus Agent for AG-UI protocol"
     });
+    this.options = options;
+  }
+
+  private generateTraceId(): string {
+    if (this.options.tracing?.generateTraceId) {
+      return this.options.tracing.generateTraceId();
+    }
+    // 默认生成策略：trace_ + 时间戳 + 随机数
+    return `trace_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 
   async process(request: any): Promise<any> {
+    // 生成或使用现有的追踪 ID
+    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : null;
+    const threadId = request.threadId || traceId || 'default';
+    const runId = request.runId || `run_${Date.now()}`;
+
     // Since HttpAgent expects RunAgentInput format, we need minimal conversion
     const agentInput = {
-      threadId: request.threadId || 'default',
-      runId: request.runId || `run_${Date.now()}`,
+      threadId,
+      runId,
       messages: request.messages || [],
       tools: request.tools || [],
       context: [],
       state: request.state || null,
     };
+
+    // 记录追踪信息
+    if (this.options.logging?.enabled && traceId) {
+      console.log(`[YaiNexus] Process request with traceId: ${traceId}, runId: ${runId}`);
+    }
 
     // Use HttpAgent's runAgent method for non-streaming
     await this.httpAgent.runAgent(agentInput);
@@ -52,15 +76,25 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
   }
 
   async *stream(request: any): AsyncIterable<any> {
+    // 生成或使用现有的追踪 ID
+    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : null;
+    const threadId = request.threadId || traceId || 'default';
+    const runId = request.runId || `run_${Date.now()}`;
+
     // Since HttpAgent expects RunAgentInput format, we need minimal conversion
     const agentInput = {
-      threadId: request.threadId || 'default',
-      runId: request.runId || `run_${Date.now()}`,
+      threadId,
+      runId,
       messages: request.messages || [],
       tools: request.tools || [],
       context: [],
       state: request.state || null,
     };
+
+    // 记录追踪信息
+    if (this.options.logging?.enabled && traceId) {
+      console.log(`[YaiNexus] Stream request with traceId: ${traceId}, runId: ${runId}`);
+    }
 
     // Use HttpAgent's run method for streaming
     const events$ = this.httpAgent.run(agentInput);
@@ -131,7 +165,7 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
  */
 export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
   // Create lightweight service adapter that proxies to AG-UI HttpAgent
-  const serviceAdapter = new YaiNexusServiceAdapter(options.backendUrl);
+  const serviceAdapter = new YaiNexusServiceAdapter(options.backendUrl, options);
 
   // Create CopilotRuntime
   const runtime = new CopilotRuntime({
