@@ -28,16 +28,46 @@ from ag_ui.core.events import (
     RunFinishedEvent,
 )
 
-# 日志系统 - 使用新的统一日志系统
-from yai_nexus_agentkit.core.logging import logger, get_logger
+# 日志系统 - 使用新的策略化日志系统
+from yai_nexus_agentkit.core.logger_config import LoggerConfigurator, get_logger
+from logging_strategies import HourlyDirectoryStrategy
 from dotenv import load_dotenv
 import os
 
 # 加载环境变量
 load_dotenv()
 
-# 为当前模块创建专用 logger
-module_logger = get_logger(__name__)
+# 配置日志系统
+def setup_logging():
+    """配置应用日志"""
+    # 根据环境选择日志策略
+    if os.getenv('ENVIRONMENT') == 'production':
+        # 生产环境可能使用不同的策略
+        configurator = LoggerConfigurator(
+            log_level="INFO", 
+            service_name="python-backend"
+        ).configure_production()
+    else:
+        # 开发环境使用按小时分目录策略
+        hourly_strategy = HourlyDirectoryStrategy(
+            base_dir="logs",
+            create_symlink=True,
+            create_readme=True
+        )
+        
+        configurator = LoggerConfigurator(
+            log_level="DEBUG", 
+            service_name="python-backend"
+        ).configure_console().configure_file(hourly_strategy)
+    
+    logger = get_logger(contextual=True)
+    logger.info("Logging system initialized", 
+                extra={"handlers": configurator.get_active_handlers()})
+    
+    return logger
+
+# 初始化日志系统
+module_logger = setup_logging()
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -319,6 +349,7 @@ if __name__ == "__main__":
                       host=host, port=port)
     module_logger.info("Backend will be available at: http://{}:{}".format(host, port))
     module_logger.info("API documentation at: http://{}:{}/docs".format(host, port))
+    module_logger.info("Log files will be stored in hourly directories under logs/")
     
     uvicorn.run(
         "main:app",
