@@ -1,6 +1,6 @@
 {
   "name": "yai-nexus-fekit-monorepo",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Monorepo for yai-nexus-fekit SDK and its example applications.",
   "scripts": {

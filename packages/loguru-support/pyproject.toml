@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "yai-loguru-support"
-version = "0.1.0"
+version = "0.2.0"
 description = "A collection of Loguru sinks for integrating with third-party cloud logging services like Aliyun SLS, Datadog, Sentry, etc."
 authors = [
     { name="YAI-Nexus", email="contact@yai-nexus.com" },

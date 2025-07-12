@@ -1,6 +1,6 @@
 {
   "name": "@yai-nexus/pino-support",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Production-ready cloud logging extensions for pino",
   "keywords": [
     "pino",
