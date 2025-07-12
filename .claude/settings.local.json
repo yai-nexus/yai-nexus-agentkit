@@ -47,7 +47,9 @@
       "Bash(timeout:*)",
       "Bash(node:*)",
       "Bash(cat:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(git tag:*)",
+      "Bash(gh release create:*)"
     ],
     "deny": []
   }
