@@ -34,10 +34,12 @@ from .persistence import (
     AgentMessage,
 )
 
-from .core.logging import (
+from .core.logger_config import (
     logger,
     get_logger,
     configure_logging,
+    LoggerConfigurator,
+    LogPathStrategy,
 )
 
 __all__ = [
@@ -72,4 +74,6 @@ __all__ = [
     "logger",
     "get_logger",
     "configure_logging",
+    "LoggerConfigurator",
+    "LogPathStrategy",
 ]
