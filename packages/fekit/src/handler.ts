@@ -5,14 +5,11 @@ import {
 } from "@copilotkit/runtime";
 import { HttpAgent } from "@ag-ui/client";
 import { NextRequest } from "next/server";
-import pino from "pino";
+import type { Logger } from "pino";
 
 export interface CreateYaiNexusHandlerOptions {
   backendUrl: string;
-  logging?: {
-    enabled?: boolean;
-    progressive?: boolean;
-  };
+  logger: Logger; // 必填：应用提供统一的 logger
   tracing?: {
     enabled?: boolean;
     generateTraceId?: () => string;
@@ -21,12 +18,12 @@ export interface CreateYaiNexusHandlerOptions {
 
 /**
  * Lightweight adapter that proxies requests to AG-UI HttpAgent
- * This is much simpler than the previous 180-line adapter
+ * Uses dependency injection for logger to integrate with application's unified logging system
  */
 class YaiNexusServiceAdapter implements CopilotServiceAdapter {
   private httpAgent: HttpAgent;
   private options: CreateYaiNexusHandlerOptions;
-  public logger: pino.Logger;
+  public baseLogger: Logger;
 
   constructor(backendUrl: string, options: CreateYaiNexusHandlerOptions) {
     this.httpAgent = new HttpAgent({
@@ -35,21 +32,15 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
     });
     this.options = options;
     
-    // 创建内置 logger
-    this.logger = this.createDefaultLogger();
+    // 使用注入的 logger，添加 fekit 上下文
+    this.baseLogger = options.logger.child({ component: 'yai-nexus-fekit' });
   }
   
-  private createDefaultLogger(): pino.Logger {
-    return pino({
-      level: 'info',
-      base: {
-        service: 'yai-nexus-fekit',
-      },
-      // 在 Node.js 环境中不使用 pretty transport（避免依赖问题）
-      formatters: {
-        level: (label: string) => ({ level: label }),
-      },
-    });
+  /**
+   * 创建带有请求上下文的 logger
+   */
+  private createRequestLogger(context: { traceId?: string; runId?: string; threadId?: string }): Logger {
+    return this.baseLogger.child(context);
   }
 
   private generateTraceId(): string {
@@ -62,7 +53,7 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
 
   async process(request: any): Promise<any> {
     // 生成或使用现有的追踪 ID
-    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : null;
+    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : undefined;
     const threadId = request.threadId || traceId || 'default';
     const runId = request.runId || `run_${Date.now()}`;
 
@@ -76,12 +67,14 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
       state: request.state || null,
     };
 
-    // 记录追踪信息
-    if (this.options.logging?.enabled && traceId) {
-      this.logger.info("Processing request", { 
-        traceId, 
-        runId, 
-        operation: "process" 
+    // 创建请求级别的 logger
+    const requestLogger = this.createRequestLogger({ traceId, runId, threadId });
+    
+    // 记录请求开始
+    if (traceId) {
+      requestLogger.info("Processing non-streaming request", { 
+        operation: "process",
+        messageCount: request.messages?.length || 0
       });
     }
 
@@ -99,7 +92,7 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
 
   async *stream(request: any): AsyncIterable<any> {
     // 生成或使用现有的追踪 ID
-    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : null;
+    const traceId = this.options.tracing?.enabled ? this.generateTraceId() : undefined;
     const threadId = request.threadId || traceId || 'default';
     const runId = request.runId || `run_${Date.now()}`;
 
@@ -113,12 +106,14 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
       state: request.state || null,
     };
 
-    // 记录追踪信息
-    if (this.options.logging?.enabled && traceId) {
-      this.logger.info("Streaming request", { 
-        traceId, 
-        runId, 
-        operation: "stream" 
+    // 创建请求级别的 logger
+    const requestLogger = this.createRequestLogger({ traceId, runId, threadId });
+    
+    // 记录流式请求开始
+    if (traceId) {
+      requestLogger.info("Processing streaming request", { 
+        operation: "stream",
+        messageCount: request.messages?.length || 0
       });
     }
 
@@ -183,9 +178,11 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
  * ```typescript
  * // /src/app/api/copilotkit/route.ts
  * import { createYaiNexusHandler } from "@yai-nexus/fekit";
+ * import { logger } from "@/lib/logger";
  * 
  * export const POST = createYaiNexusHandler({
  *   backendUrl: process.env.PYTHON_BACKEND_URL!,
+ *   logger, // 注入应用的统一 logger
  * });
  * ```
  */
@@ -197,23 +194,27 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
   const runtime = new CopilotRuntime({
     middleware: {
       onBeforeRequest: async ({ threadId, runId, inputMessages, properties }) => {
-        if (options.logging?.enabled) {
-          const logger = serviceAdapter.logger.child({ threadId, runId });
-          logger.info("CopilotRuntime request started", {
-            messageCount: inputMessages.length,
-            properties
-          });
-        }
+        const logger = serviceAdapter.baseLogger.child({ 
+          threadId, 
+          runId, 
+          phase: 'before' 
+        });
+        logger.info("CopilotRuntime request started", {
+          messageCount: inputMessages.length,
+          properties
+        });
       },
       onAfterRequest: async ({ threadId, runId, inputMessages, outputMessages, properties }) => {
-        if (options.logging?.enabled) {
-          const logger = serviceAdapter.logger.child({ threadId, runId });
-          logger.info("CopilotRuntime request completed", {
-            inputCount: inputMessages.length,
-            outputCount: outputMessages.length,
-            properties
-          });
-        }
+        const logger = serviceAdapter.baseLogger.child({ 
+          threadId, 
+          runId, 
+          phase: 'after' 
+        });
+        logger.info("CopilotRuntime request completed", {
+          inputCount: inputMessages.length,
+          outputCount: outputMessages.length,
+          properties
+        });
       }
     }
   });
@@ -229,8 +230,8 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
     try {
       return await handleRequest(req);
     } catch (error) {
-      // 使用 serviceAdapter 的 logger 记录错误
-      serviceAdapter.logger.error("Handler error", {
+      // 使用注入的 logger 记录错误
+      serviceAdapter.baseLogger.error("Handler error", {
         error: error instanceof Error ? {
           name: error.name,
           message: error.message,
