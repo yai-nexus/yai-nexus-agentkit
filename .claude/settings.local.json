@@ -46,7 +46,8 @@
       "Bash(source:*)",
       "Bash(timeout:*)",
       "Bash(node:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }

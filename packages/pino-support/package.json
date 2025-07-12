@@ -1,0 +1,83 @@
+{
+  "name": "@yai-nexus/pino-support",
+  "version": "1.0.0",
+  "description": "Production-ready cloud logging extensions for pino",
+  "keywords": [
+    "pino",
+    "logging",
+    "cloud",
+    "sls",
+    "transport",
+    "yai-nexus"
+  ],
+  "homepage": "https://github.com/yai-nexus-agentkit",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yai-nexus-agentkit.git",
+    "directory": "packages/pino-support"
+  },
+  "license": "MIT",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./sls": {
+      "types": "./dist/sls/index.d.ts",
+      "import": "./dist/sls/index.mjs",
+      "require": "./dist/sls/index.js"
+    },
+    "./monitoring": {
+      "types": "./dist/monitoring/index.d.ts",
+      "import": "./dist/monitoring/index.mjs",
+      "require": "./dist/monitoring/index.js"
+    },
+    "./utils": {
+      "types": "./dist/utils/index.d.ts",
+      "import": "./dist/utils/index.mjs",
+      "require": "./dist/utils/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "pino": "^8.0.0",
+    "pino-abstract-transport": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@vitest/coverage-v8": "^1.0.0"
+  },
+  "peerDependencies": {
+    "pino": ">=8.0.0"
+  },
+  "optionalDependencies": {
+    "@alicloud/sls": "^3.0.0",
+    "axios": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

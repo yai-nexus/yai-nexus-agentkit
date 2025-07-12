@@ -5,6 +5,7 @@ import {
 } from "@copilotkit/runtime";
 import { HttpAgent } from "@ag-ui/client";
 import { NextRequest } from "next/server";
+import pino from "pino";
 
 export interface CreateYaiNexusHandlerOptions {
   backendUrl: string;
@@ -25,6 +26,7 @@ export interface CreateYaiNexusHandlerOptions {
 class YaiNexusServiceAdapter implements CopilotServiceAdapter {
   private httpAgent: HttpAgent;
   private options: CreateYaiNexusHandlerOptions;
+  public logger: pino.Logger;
 
   constructor(backendUrl: string, options: CreateYaiNexusHandlerOptions) {
     this.httpAgent = new HttpAgent({
@@ -32,6 +34,22 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
       description: "YAI Nexus Agent for AG-UI protocol"
     });
     this.options = options;
+    
+    // 创建内置 logger
+    this.logger = this.createDefaultLogger();
+  }
+  
+  private createDefaultLogger(): pino.Logger {
+    return pino({
+      level: 'info',
+      base: {
+        service: 'yai-nexus-fekit',
+      },
+      // 在 Node.js 环境中不使用 pretty transport（避免依赖问题）
+      formatters: {
+        level: (label: string) => ({ level: label }),
+      },
+    });
   }
 
   private generateTraceId(): string {
@@ -60,7 +78,11 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
 
     // 记录追踪信息
     if (this.options.logging?.enabled && traceId) {
-      console.log(`[YaiNexus] Process request with traceId: ${traceId}, runId: ${runId}`);
+      this.logger.info("Processing request", { 
+        traceId, 
+        runId, 
+        operation: "process" 
+      });
     }
 
     // Use HttpAgent's runAgent method for non-streaming
@@ -93,7 +115,11 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
 
     // 记录追踪信息
     if (this.options.logging?.enabled && traceId) {
-      console.log(`[YaiNexus] Stream request with traceId: ${traceId}, runId: ${runId}`);
+      this.logger.info("Streaming request", { 
+        traceId, 
+        runId, 
+        operation: "stream" 
+      });
     }
 
     // Use HttpAgent's run method for streaming
@@ -172,9 +198,8 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
     middleware: {
       onBeforeRequest: async ({ threadId, runId, inputMessages, properties }) => {
         if (options.logging?.enabled) {
-          console.log('[YaiNexus] Request:', {
-            threadId,
-            runId,
+          const logger = serviceAdapter.logger.child({ threadId, runId });
+          logger.info("CopilotRuntime request started", {
             messageCount: inputMessages.length,
             properties
           });
@@ -182,9 +207,8 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
       },
       onAfterRequest: async ({ threadId, runId, inputMessages, outputMessages, properties }) => {
         if (options.logging?.enabled) {
-          console.log('[YaiNexus] Response:', {
-            threadId,
-            runId,
+          const logger = serviceAdapter.logger.child({ threadId, runId });
+          logger.info("CopilotRuntime request completed", {
             inputCount: inputMessages.length,
             outputCount: outputMessages.length,
             properties
@@ -205,7 +229,16 @@ export function createYaiNexusHandler(options: CreateYaiNexusHandlerOptions) {
     try {
       return await handleRequest(req);
     } catch (error) {
-      console.error('[YaiNexus] Handler error:', error);
+      // 使用 serviceAdapter 的 logger 记录错误
+      serviceAdapter.logger.error("Handler error", {
+        error: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : { message: String(error) },
+        url: req.url,
+        method: req.method
+      });
       
       // Return a proper error response
       return new Response(

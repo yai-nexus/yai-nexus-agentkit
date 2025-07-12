@@ -34,6 +34,12 @@ from .persistence import (
     AgentMessage,
 )
 
+from .core.logging import (
+    logger,
+    get_logger,
+    configure_logging,
+)
+
 __all__ = [
     # LLM 核心功能
     "LLMFactory",
@@ -62,4 +68,8 @@ __all__ = [
     "PostgresCheckpoint",
     "AgentConversation",
     "AgentMessage",
+    # 日志系统
+    "logger",
+    "get_logger",
+    "configure_logging",
 ]

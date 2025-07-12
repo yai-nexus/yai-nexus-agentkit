@@ -34,6 +34,9 @@ dependencies = [
     "langchain-core",
     "langgraph>=0.5.2,<0.6.0",
     "yai-nexus-configuration>=0.1.1",
+    # Logging - modern structured logging
+    "loguru>=0.7.0",
+    "python-dotenv",  # 环境变量管理
     # Web framework - core to our FastAPI/AG-UI positioning
     "fastapi",
     "uvicorn",

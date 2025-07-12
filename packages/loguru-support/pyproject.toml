@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yai-loguru-support"
+version = "0.1.0"
+description = "A collection of Loguru sinks for integrating with third-party cloud logging services like Aliyun SLS, Datadog, Sentry, etc."
+authors = [
+    { name="YAI-Nexus", email="contact@yai-nexus.com" },
+]
+license = { file = "LICENSE" }
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Logging",
+]
+dependencies = [
+    "loguru>=0.7.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/yai-nexus/yai-nexus-agentkit"
+Repository = "https://github.com/yai-nexus/yai-nexus-agentkit"
+
+[project.optional-dependencies]
+# 阿里云 SLS 支持
+sls = ["aliyun-log-python-sdk>=0.7.8"]
+
+# Datadog 支持 (预留)
+datadog = ["datadog>=0.44.0"]
+
+# Sentry 支持 (预留)
+sentry = ["sentry-sdk>=1.0.0"]
+
+# 开发工具
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+# 所有云服务支持
+all = [
+    "yai-loguru-support[sls]",
+    "yai-loguru-support[datadog]",
+    "yai-loguru-support[sentry]",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.black]
+line-length = 120
+target-version = ['py39']
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --cov=yai_loguru_support --cov-report=term-missing"

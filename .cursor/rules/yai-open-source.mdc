@@ -28,9 +28,10 @@ alwaysApply: false
 ## 2. 开发工具与依赖
 
 - **核心依赖**:
-  - 日志工具: `yai-nexus-logger`
+  - 日志工具: `loguru` + `loguru-support`
   - 配置工具: `yai-nexus-configuration`
   - LLM 访问层: `langchain`
+  - AI Agents & Workflows: `langgraph 0.5.x`
 
 - **开发与品控工具**:
   - 格式化: `black`
