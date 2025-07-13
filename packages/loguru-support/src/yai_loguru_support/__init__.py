@@ -32,9 +32,37 @@ from .base import BaseSink, SinkError, SinkConfig
 # Import specific sinks when their dependencies are available
 try:
     from .sls import AliyunSlsSink
-    __all__ = ["__version__", "BaseSink", "SinkError", "SinkConfig", "AliyunSlsSink"]
+    _sinks = ["AliyunSlsSink"]
 except ImportError:
-    __all__ = ["__version__", "BaseSink", "SinkError", "SinkConfig"]
+    _sinks = []
+
+# Import logging strategies
+try:
+    from .strategies import HourlyDirectoryStrategy, DailyDirectoryStrategy, SimpleFileStrategy
+    _strategies = ["HourlyDirectoryStrategy", "DailyDirectoryStrategy", "SimpleFileStrategy"]
+except ImportError:
+    _strategies = []
+
+# Import unified logging configuration
+try:
+    from .unified_config import (
+        setup_logging, 
+        setup_dev_logging, 
+        setup_prod_logging, 
+        setup_console_only_logging,
+        get_logger_metadata
+    )
+    _unified_config = [
+        "setup_logging", 
+        "setup_dev_logging", 
+        "setup_prod_logging", 
+        "setup_console_only_logging",
+        "get_logger_metadata"
+    ]
+except ImportError:
+    _unified_config = []
+
+__all__ = ["__version__", "BaseSink", "SinkError", "SinkConfig"] + _sinks + _strategies + _unified_config
 
 # Version info
 __author__ = "YAI-Nexus Team"

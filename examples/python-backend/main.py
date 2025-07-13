@@ -20,39 +20,28 @@ from pydantic import BaseModel
 # 核心依赖
 from ag_ui.core import RunAgentInput
 from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, Task
-from yai_nexus_agentkit.core.logger_config import LoggerConfigurator, get_logger
-from logging_strategies import HourlyDirectoryStrategy
+from yai_loguru_support import setup_logging, setup_dev_logging, setup_prod_logging
+from loguru import logger
 from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
 
 # 配置日志系统
-def setup_logging():
-    """配置应用日志"""
-    # 根据环境选择日志策略
-    if os.getenv('ENVIRONMENT') == 'production':
-        # 生产环境可能使用不同的策略
-        configurator = LoggerConfigurator(
-            log_level="INFO", 
-            service_name="python-backend"
-        ).configure_production()
-    else:
-        # 开发环境使用按小时分目录策略
-        hourly_strategy = HourlyDirectoryStrategy(
-            base_dir="logs",
-            create_symlink=True,
-            create_readme=True
-        )
-        
-        configurator = LoggerConfigurator(
-            log_level="DEBUG", 
-            service_name="python-backend"
-        ).configure_console().configure_file(hourly_strategy)
+def configure_logging():
+    """配置应用日志 - 使用统一的日志配置系统"""
+    environment = os.getenv('ENVIRONMENT', 'development')
     
-    logger = get_logger(contextual=True)
+    if environment == 'production':
+        # 生产环境配置
+        setup_prod_logging("python-backend", level="info")
+    else:
+        # 开发环境配置
+        setup_dev_logging("python-backend")
+    
     logger.info("Logging system initialized", 
-                extra={"handlers": configurator.get_active_handlers()})
+                environment=environment, 
+                service="python-backend")
     
     return logger
 
@@ -64,18 +53,18 @@ def check_environment_variables():
     dashscope_key = os.getenv("DASHSCOPE_API_KEY")
     
     if not any([openai_key, openrouter_key, dashscope_key]):
-        module_logger.error("FATAL: No API key found. Please set one of: OPENAI_API_KEY, OPENROUTER_API_KEY, or DASHSCOPE_API_KEY")
+        logger.error("FATAL: No API key found. Please set one of: OPENAI_API_KEY, OPENROUTER_API_KEY, or DASHSCOPE_API_KEY")
         raise ValueError("At least one LLM API key is required to run the application.")
     
     if openai_key:
-        module_logger.info("OPENAI_API_KEY is configured.")
+        logger.info("OPENAI_API_KEY is configured.")
     elif openrouter_key:
-        module_logger.info("OPENROUTER_API_KEY is configured.")
+        logger.info("OPENROUTER_API_KEY is configured.")
     elif dashscope_key:
-        module_logger.info("DASHSCOPE_API_KEY is configured.")
+        logger.info("DASHSCOPE_API_KEY is configured.")
 
 # 初始化日志系统和环境检查
-module_logger = setup_logging()
+configure_logging()
 check_environment_variables()
 
 # --- LangGraph Agent Definition ---
@@ -88,10 +77,10 @@ class AgentState(TypedDict):
 def create_llm():
     """根据环境变量创建合适的 LLM 实例"""
     if os.getenv("OPENAI_API_KEY"):
-        module_logger.info("Using OpenAI ChatGPT")
+        logger.info("Using OpenAI ChatGPT")
         return ChatOpenAI(model="gpt-4o")
     elif os.getenv("OPENROUTER_API_KEY"):
-        module_logger.info("Using OpenRouter") 
+        logger.info("Using OpenRouter") 
         return ChatOpenAI(
             model="openai/gpt-4o-mini",
             base_url="https://openrouter.ai/api/v1",
@@ -101,13 +90,13 @@ def create_llm():
         # 使用阿里云通义千问，需要导入对应的库
         try:
             from langchain_community.llms import Tongyi
-            module_logger.info("Using Tongyi (DashScope)")
+            logger.info("Using Tongyi (DashScope)")
             return Tongyi(
                 model="qwen-turbo",
                 dashscope_api_key=os.getenv("DASHSCOPE_API_KEY")
             )
         except ImportError:
-            module_logger.warning("langchain_community not available, falling back to OpenRouter")
+            logger.warning("langchain_community not available, falling back to OpenRouter")
             # 回退到 OpenRouter
             return ChatOpenAI(
                 model="openai/gpt-4o-mini", 
@@ -122,7 +111,7 @@ llm = create_llm()
 # 定义 Agent 节点，该节点将调用 LLM
 def llm_agent_node(state: AgentState) -> Dict[str, List[BaseMessage]]:
     """调用 LLM 并返回其响应"""
-    module_logger.info("LLM Agent node is processing the state.")
+    logger.info("LLM Agent node is processing the state.")
     return {"messages": [llm.invoke(state["messages"])]}
 
 # 创建 Agent 的图 (Graph)
@@ -153,7 +142,8 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         trace_id = f"trace_{uuid.uuid4().hex[:12]}"
         
         # 创建请求级别的 logger
-        req_logger = module_logger.with_trace_id(trace_id).bind(
+        req_logger = logger.bind(
+            trace_id=trace_id,
             request_id=request_id,
             method=request.method,
             path=request.url.path,
@@ -314,11 +304,11 @@ if __name__ == "__main__":
     host = os.getenv("HOST", "127.0.0.1")
     port = int(os.getenv("PORT", "8000"))
     
-    module_logger.info("Starting YAI Nexus FeKit Python Backend...",
-                      host=host, port=port)
-    module_logger.info("Backend will be available at: http://{}:{}".format(host, port))
-    module_logger.info("API documentation at: http://{}:{}/docs".format(host, port))
-    module_logger.info("Log files will be stored in hourly directories under logs/")
+    logger.info("Starting YAI Nexus FeKit Python Backend...",
+                host=host, port=port)
+    logger.info("Backend will be available at: http://{}:{}".format(host, port))
+    logger.info("API documentation at: http://{}:{}/docs".format(host, port))
+    logger.info("Log files will be stored in hourly directories under logs/")
     
     uvicorn.run(
         "main:app",

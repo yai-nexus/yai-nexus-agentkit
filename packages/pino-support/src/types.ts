@@ -142,3 +142,63 @@ export interface GracefulShutdownConfig {
   /** Enable atexit handler */
   enableAtexit?: boolean;
 }
+
+/**
+ * Unified logging configuration interface.
+ * This serves as the "Single Source of Truth" for logging configuration
+ * across both Python (loguru-support) and Node.js (pino-support) stacks.
+ */
+export interface LoggerConfig {
+  /** Service name for log identification */
+  serviceName: string;
+  /** Log level (debug, info, warn, error) */
+  level?: 'debug' | 'info' | 'warn' | 'error';
+  /** Console output configuration */
+  console?: {
+    /** Enable console output */
+    enabled?: boolean;
+    /** Pretty print for development */
+    pretty?: boolean;
+  };
+  /** File output configuration */
+  file?: {
+    /** Enable file output */
+    enabled?: boolean;
+    /** Base directory for log files */
+    baseDir?: string;
+    /** Directory strategy (hourly, daily) */
+    strategy?: 'hourly' | 'daily';
+    /** Maximum file size in bytes */
+    maxSize?: number;
+    /** Maximum number of files to keep */
+    maxFiles?: number;
+  };
+  /** Cloud logging configuration */
+  cloud?: {
+    /** Enable cloud logging */
+    enabled?: boolean;
+    /** Cloud provider specific config */
+    sls?: {
+      endpoint: string;
+      accessKeyId: string;
+      accessKeySecret: string;
+      project: string;
+      logstore: string;
+      region?: string;
+    };
+  };
+}
+
+/**
+ * Environment detection result for isomorphic logger setup
+ */
+export interface EnvironmentInfo {
+  /** Is running in browser environment */
+  isBrowser: boolean;
+  /** Is running in Node.js environment */
+  isNode: boolean;
+  /** Is running in Next.js environment */
+  isNextJs: boolean;
+  /** Environment type for logging purposes */
+  environment: 'browser' | 'node' | 'unknown';
+}

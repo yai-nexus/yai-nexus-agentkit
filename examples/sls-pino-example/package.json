@@ -1,0 +1,26 @@
+{
+  "name": "sls-pino-example",
+  "version": "0.1.0",
+  "description": "SLS logging integration example using pino and @yai-nexus/pino-support",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@yai-nexus/pino-support": "file:../../packages/pino-support",
+    "dotenv": "^16.4.5",
+    "pino": "^9.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

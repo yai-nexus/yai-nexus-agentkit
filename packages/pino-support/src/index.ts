@@ -16,3 +16,8 @@ export { version } from './version';
 export * from './sls';
 export * from './monitoring';
 export * from './utils';
+
+// Export unified logging configuration
+export * from './unified-config';
+export * from './environment';
+export * from './transports';

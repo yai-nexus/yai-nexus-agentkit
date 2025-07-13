@@ -4,18 +4,52 @@
 提供不同的日志存储策略，包括：
 - HourlyDirectoryStrategy: 按小时分目录存储日志
 - SimpleFileStrategy: 简单文件存储策略
+- DailyDirectoryStrategy: 按天分目录存储日志
 
-这些策略实现了 LogPathStrategy 接口，可以与 LoggerConfigurator 配合使用。
+这些策略实现了 LogPathStrategy 接口，可以与统一日志配置系统配合使用。
 """
 
 import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
-from yai_nexus_agentkit.core.logger_config import LogPathStrategy
-from yai_nexus_agentkit.core.utils import find_project_root, ensure_directory
+try:
+    from yai_nexus_agentkit.core.logger_config import LogPathStrategy
+    from yai_nexus_agentkit.core.utils import find_project_root, ensure_directory
+except ImportError:
+    # 如果 agentkit 不可用，提供基础实现
+    from abc import ABC, abstractmethod
+    
+    class LogPathStrategy(ABC):
+        """日志路径策略接口"""
+        
+        @abstractmethod
+        def get_log_path(self, service_name: str) -> str:
+            """生成日志文件路径"""
+            pass
+        
+        @abstractmethod
+        def get_metadata(self) -> Dict[str, Any]:
+            """获取策略元数据"""
+            pass
+    
+    def find_project_root() -> Path:
+        """查找项目根目录"""
+        current = Path.cwd()
+        for parent in [current] + list(current.parents):
+            if (parent / "package.json").exists() or (parent / "pyproject.toml").exists():
+                return parent
+        return current
+    
+    def ensure_directory(path: Path) -> bool:
+        """确保目录存在"""
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            return True
+        except Exception:
+            return False
 
 
 class HourlyDirectoryStrategy(LogPathStrategy):
@@ -137,31 +171,8 @@ class HourlyDirectoryStrategy(LogPathStrategy):
                 pass  # README 创建失败不应该影响日志功能
 
 
-class SimpleFileStrategy(LogPathStrategy):
-    """简单文件策略 - 用于对比和备选方案"""
-    
-    def __init__(self, log_dir: str = "logs", filename_template: str = "{service_name}.log"):
-        self.log_dir = log_dir
-        self.filename_template = filename_template
-    
-    def get_log_path(self, service_name: str) -> str:
-        root_dir = find_project_root()
-        log_dir = root_dir / self.log_dir
-        ensure_directory(log_dir)
-        
-        filename = self.filename_template.format(service_name=service_name)
-        return str(log_dir / filename)
-    
-    def get_metadata(self) -> Dict[str, Any]:
-        return {
-            "strategy_name": "simple_file",
-            "log_dir": self.log_dir,
-            "filename_template": self.filename_template
-        }
-
-
 class DailyDirectoryStrategy(LogPathStrategy):
-    """按天分目录的日志策略 - 额外选项"""
+    """按天分目录的日志策略"""
     
     def __init__(self, base_dir: str = "logs", create_symlink: bool = True):
         self.base_dir = base_dir
@@ -213,6 +224,29 @@ class DailyDirectoryStrategy(LogPathStrategy):
                     f.write(day_dir)
         except Exception:
             pass
+
+
+class SimpleFileStrategy(LogPathStrategy):
+    """简单文件策略 - 用于对比和备选方案"""
+    
+    def __init__(self, log_dir: str = "logs", filename_template: str = "{service_name}.log"):
+        self.log_dir = log_dir
+        self.filename_template = filename_template
+    
+    def get_log_path(self, service_name: str) -> str:
+        root_dir = find_project_root()
+        log_dir = root_dir / self.log_dir
+        ensure_directory(log_dir)
+        
+        filename = self.filename_template.format(service_name=service_name)
+        return str(log_dir / filename)
+    
+    def get_metadata(self) -> Dict[str, Any]:
+        return {
+            "strategy_name": "simple_file",
+            "log_dir": self.log_dir,
+            "filename_template": self.filename_template
+        }
 
 
 __all__ = [

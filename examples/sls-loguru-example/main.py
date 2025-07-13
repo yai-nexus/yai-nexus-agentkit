@@ -22,6 +22,7 @@ import asyncio
 import time
 from dotenv import load_dotenv
 from loguru import logger
+from yai_loguru_support import setup_logging
 from yai_loguru_support.sls import AliyunSlsSink
 from yai_loguru_support.utils import create_production_setup
 
@@ -29,33 +30,42 @@ from yai_loguru_support.utils import create_production_setup
 async def main():
     """主函数 - 演示 SLS 日志集成的核心流程"""
     
-    # 1. 检查必要的环境变量
+    # 1. 设置统一的基础日志配置 (控制台 + 文件)
+    setup_logging("sls-loguru-example", {
+        "level": "info",
+        "console": {"enabled": True, "pretty": True},
+        "file": {"enabled": True, "strategy": "hourly"}
+    })
+    
+    logger.info("启动 SLS 日志集成示例", service="sls-loguru-example")
+    
+    # 2. 检查必要的环境变量
     required_vars = ["SLS_ENDPOINT", "SLS_AK_ID", "SLS_AK_KEY", "SLS_PROJECT", "SLS_LOGSTORE"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
     
     if missing_vars:
-        print(f"错误: 缺少必要的环境变量: {missing_vars}")
-        print("请参考 README.md 设置环境变量。")
+        logger.error("缺少必要的环境变量", missing_vars=missing_vars)
+        logger.error("请参考 README.md 设置环境变量")
         return
         
     try:
-        # 2. 从环境变量创建 SLS Sink
+        # 3. 从环境变量创建 SLS Sink
         sls_sink = AliyunSlsSink.from_env()
         
-        # 3. 手动启动 SLS Sink (确保连接建立)
+        # 4. 手动启动 SLS Sink (确保连接建立)
         await sls_sink.start()
         
-        # 4. 添加到 loguru (发送 INFO 及以上级别日志到 SLS)
+        # 5. 添加到 loguru (发送 INFO 及以上级别日志到 SLS)
         logger.add(sls_sink, serialize=True, level="INFO")
         
-        # 5. 设置优雅停机 (确保程序退出前日志完整发送)
+        # 6. 设置优雅停机 (确保程序退出前日志完整发送)
         create_production_setup([sls_sink])
         
         logger.info("SLS 日志集成已启用", 
                    project=os.getenv("SLS_PROJECT"), 
                    logstore=os.getenv("SLS_LOGSTORE"))
         
-        # 5. 发送示例日志
+        # 7. 发送示例日志
         logger.info("这是一个简单的 INFO 日志")
         logger.warning("这是一个 WARNING 日志", user_id="demo_user")
         
@@ -80,7 +90,7 @@ async def main():
         
         logger.info("示例运行结束，等待日志发送...")
         
-        # 6. 等待批处理发送 (SLS 使用批量发送优化性能)
+        # 8. 等待批处理发送 (SLS 使用批量发送优化性能)
         await asyncio.sleep(5)
         
         logger.info("SLS 日志示例完成")
