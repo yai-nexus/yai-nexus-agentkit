@@ -314,15 +314,6 @@ class AliyunSlsSink(BaseSink):
             # No event loop, create a new one
             asyncio.run(super().stop())
             
-    def stop_sync(self) -> None:
-        """
-        Synchronous stop method for use in atexit handlers.
-        
-        This is a convenience method that runs the async stop() in a new event loop.
-        Use the async version when possible.
-        """
-        self.stop()
-            
     def get_sls_metrics(self) -> Dict[str, Any]:
         """Get SLS-specific metrics."""
         metrics = self.get_metrics()

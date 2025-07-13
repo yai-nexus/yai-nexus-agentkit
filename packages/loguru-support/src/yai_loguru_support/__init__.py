@@ -26,7 +26,6 @@ Example usage:
     logger.info("Hello from cloud logging!")
 """
 
-from .version import __version__
 from .base import BaseSink, SinkError, SinkConfig
 
 # Import specific sinks when their dependencies are available
@@ -62,7 +61,7 @@ try:
 except ImportError:
     _unified_config = []
 
-__all__ = ["__version__", "BaseSink", "SinkError", "SinkConfig"] + _sinks + _strategies + _unified_config
+__all__ = ["BaseSink", "SinkError", "SinkConfig"] + _sinks + _strategies + _unified_config
 
 # Version info
 __author__ = "YAI-Nexus Team"

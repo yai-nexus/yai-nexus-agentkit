@@ -7,7 +7,6 @@ ensuring consistent behavior and standardized configuration across different pro
 
 import abc
 import asyncio
-import threading
 import time
 from typing import Any, Dict, Optional, Union, Callable
 from dataclasses import dataclass, field
@@ -137,7 +136,6 @@ class BaseSink(abc.ABC):
         self._queue: Optional[asyncio.Queue] = None
         self._background_task: Optional[asyncio.Task] = None
         self._executor = ThreadPoolExecutor(max_workers=config.max_workers)
-        self._lock = threading.Lock()
         
         # Health check
         self._last_health_check = time.time()

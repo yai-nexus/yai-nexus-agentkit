@@ -56,7 +56,8 @@
       "Bash(pkill:*)",
       "Bash(curl:*)",
       "Bash(pip show:*)",
-      "Bash(echo $VIRTUAL_ENV)"
+      "Bash(echo $VIRTUAL_ENV)",
+      "WebFetch(domain:loguru.readthedocs.io)"
     ],
     "deny": []
   }
