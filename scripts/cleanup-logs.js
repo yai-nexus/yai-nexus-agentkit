@@ -22,7 +22,7 @@ const path = require('path');
 class LogCleaner {
   constructor(options = {}) {
     this.logsDir = options.logsDir || path.join(process.cwd(), 'logs');
-    this.retentionDays = options.retentionDays || 7;
+    this.retentionDays = options.retentionDays !== undefined ? options.retentionDays : 7;
     this.maxSize = options.maxSize || null; // 如 "1GB", "500MB"
     this.dryRun = options.dryRun || false;
     this.verbose = options.verbose || false;
