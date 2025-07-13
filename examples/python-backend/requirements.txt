@@ -5,3 +5,7 @@ python-multipart==0.0.20
 ag-ui-protocol
 python-dotenv>=1.0.0
 -e ../../packages/agentkit
+langgraph>=0.5.2
+langchain-core>=0.3.68
+langchain-openai>=0.3.27
+sse-starlette>=2.1.0

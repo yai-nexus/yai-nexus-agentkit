@@ -49,7 +49,12 @@
       "Bash(cat:*)",
       "Bash(touch:*)",
       "Bash(git tag:*)",
-      "Bash(gh release create:*)"
+      "Bash(gh release create:*)",
+      "Bash(true)",
+      "Bash(OPENAI_API_KEY=\"\" python main.py)",
+      "Bash(export OPENAI_API_KEY=\"test-key\")",
+      "Bash(pkill:*)",
+      "Bash(curl:*)"
     ],
     "deny": []
   }

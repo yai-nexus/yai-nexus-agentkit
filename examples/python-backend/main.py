@@ -1,38 +1,28 @@
 #!/usr/bin/env python3
 """
-Simple Python backend example for yai-nexus-fekit SDK
-This is a minimal echo server that demonstrates the ag-ui-protocol integration
+Python backend example for yai-nexus-fekit, using AGUIAdapter.
 """
+import os
+import uuid
+import time
+from typing import TypedDict, Annotated, List, Dict, Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-import json
-import time
-import asyncio
-from typing import Dict, Any, AsyncGenerator, List, Optional
-import uuid
+from sse_starlette.sse import EventSourceResponse
+from langchain_core.messages import BaseMessage
+from langchain_openai import ChatOpenAI
+from langgraph.graph import StateGraph
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 
-# 核心依赖 - 从 ag-ui 导入标准事件和请求模型
+# 核心依赖
 from ag_ui.core import RunAgentInput
-from ag_ui.core.events import (
-    EventType,
-    RunStartedEvent,
-    TextMessageChunkEvent,
-    ToolCallStartEvent,
-    ToolCallArgsEvent,
-    ToolCallEndEvent,
-    ToolCallResultEvent,
-    RunFinishedEvent,
-)
-
-# 日志系统 - 使用新的策略化日志系统
+from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, Task
 from yai_nexus_agentkit.core.logger_config import LoggerConfigurator, get_logger
 from logging_strategies import HourlyDirectoryStrategy
 from dotenv import load_dotenv
-import os
 
 # 加载环境变量
 load_dotenv()
@@ -66,8 +56,87 @@ def setup_logging():
     
     return logger
 
-# 初始化日志系统
+def check_environment_variables():
+    """检查必要的环境变量是否已设置"""
+    # 检查多种可用的 API Key
+    openai_key = os.getenv("OPENAI_API_KEY")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
+    
+    if not any([openai_key, openrouter_key, dashscope_key]):
+        module_logger.error("FATAL: No API key found. Please set one of: OPENAI_API_KEY, OPENROUTER_API_KEY, or DASHSCOPE_API_KEY")
+        raise ValueError("At least one LLM API key is required to run the application.")
+    
+    if openai_key:
+        module_logger.info("OPENAI_API_KEY is configured.")
+    elif openrouter_key:
+        module_logger.info("OPENROUTER_API_KEY is configured.")
+    elif dashscope_key:
+        module_logger.info("DASHSCOPE_API_KEY is configured.")
+
+# 初始化日志系统和环境检查
 module_logger = setup_logging()
+check_environment_variables()
+
+# --- LangGraph Agent Definition ---
+
+class AgentState(TypedDict):
+    """定义 Agent 的状态，包含消息列表"""
+    messages: Annotated[List[BaseMessage], add_messages]
+
+# 根据可用的 API Key 创建 LLM 实例
+def create_llm():
+    """根据环境变量创建合适的 LLM 实例"""
+    if os.getenv("OPENAI_API_KEY"):
+        module_logger.info("Using OpenAI ChatGPT")
+        return ChatOpenAI(model="gpt-4o")
+    elif os.getenv("OPENROUTER_API_KEY"):
+        module_logger.info("Using OpenRouter") 
+        return ChatOpenAI(
+            model="openai/gpt-4o-mini",
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.getenv("OPENROUTER_API_KEY")
+        )
+    elif os.getenv("DASHSCOPE_API_KEY"):
+        # 使用阿里云通义千问，需要导入对应的库
+        try:
+            from langchain_community.llms import Tongyi
+            module_logger.info("Using Tongyi (DashScope)")
+            return Tongyi(
+                model="qwen-turbo",
+                dashscope_api_key=os.getenv("DASHSCOPE_API_KEY")
+            )
+        except ImportError:
+            module_logger.warning("langchain_community not available, falling back to OpenRouter")
+            # 回退到 OpenRouter
+            return ChatOpenAI(
+                model="openai/gpt-4o-mini", 
+                base_url="https://openrouter.ai/api/v1",
+                api_key=os.getenv("OPENROUTER_API_KEY") or "fallback"
+            )
+    else:
+        raise ValueError("No suitable LLM configuration found")
+
+llm = create_llm()
+
+# 定义 Agent 节点，该节点将调用 LLM
+def llm_agent_node(state: AgentState) -> Dict[str, List[BaseMessage]]:
+    """调用 LLM 并返回其响应"""
+    module_logger.info("LLM Agent node is processing the state.")
+    return {"messages": [llm.invoke(state["messages"])]}
+
+# 创建 Agent 的图 (Graph)
+graph_builder = StateGraph(AgentState)
+graph_builder.add_node("agent", llm_agent_node)
+graph_builder.set_entry_point("agent")
+graph_builder.set_finish_point("agent")
+
+# 编译图，得到可运行的 Agent
+agent = graph_builder.compile()
+
+# --- AGUIAdapter Instantiation ---
+# 使用编译好的 Agent 实例化适配器
+agui_adapter = AGUIAdapter(agent=agent)
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):
@@ -185,158 +254,58 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
-async def generate_streaming_response(content: str, run_id: str, thread_id: str) -> AsyncGenerator[str, None]:
-    """
-    Generate a streaming response that simulates an AI agent
-    responding with ag-ui-protocol events, using official event models.
-    """
-    # 创建带上下文的 logger
-    ctx_logger = module_logger.with_trace_id(thread_id).bind(
-        run_id=run_id,
-        thread_id=thread_id
-    )
-    
-    ctx_logger.info("Generating streaming response", content=content)
-    
-    # Start event
-    start_event = RunStartedEvent(
-        type=EventType.RUN_STARTED,
-        run_id=run_id,
-        thread_id=thread_id
-    )
-    yield f"data: {start_event.model_dump_json()}\n\n"
-    await asyncio.sleep(0.5)
-    
-    # Simulate streaming text response
-    response_text = f"Echo: {content}\n\nThis is a demonstration using ag_ui.core.events. Your message was received and processed."
-    words = response_text.split()
-    for i, word in enumerate(words):
-        chunk_event = TextMessageChunkEvent(
-            type=EventType.TEXT_MESSAGE_CHUNK,
-            delta=word + " "
-        )
-        yield f"data: {chunk_event.model_dump_json()}\n\n"
-        await asyncio.sleep(0.1)
-    
-    # Tool call demonstration
-    if "tool" in content.lower() or "function" in content.lower():
-        tool_call_id = f"tool_call_{uuid.uuid4().hex}"
-        # ... (rest of tool call logic from before)
-        tool_call_event = ToolCallStartEvent(
-            type=EventType.TOOL_CALL_START,
-            tool_call_id=tool_call_id,
-            tool_call_name="echo_tool"
-        )
-        yield f"data: {tool_call_event.model_dump_json()}\n\n"
-        await asyncio.sleep(0.1)
-
-        args_event = ToolCallArgsEvent(
-            type=EventType.TOOL_CALL_ARGS,
-            tool_call_id=tool_call_id,
-            delta=json.dumps({"input": content})
-        )
-        yield f"data: {args_event.model_dump_json()}\n\n"
-        await asyncio.sleep(0.3)
-        
-        end_event = ToolCallEndEvent(
-             type=EventType.TOOL_CALL_END,
-             tool_call_id=tool_call_id
-        )
-        yield f"data: {end_event.model_dump_json()}\n\n"
-        await asyncio.sleep(0.1)
-
-        result_event = ToolCallResultEvent(
-            type=EventType.TOOL_CALL_RESULT,
-            tool_call_id=tool_call_id,
-            message_id=tool_call_id, # Simplified for example
-            content=f"Tool executed successfully with input: {content}"
-        )
-        yield f"data: {result_event.model_dump_json()}\n\n"
-
-    # End event
-    end_event = RunFinishedEvent(
-        type=EventType.RUN_FINISHED,
-        run_id=run_id,
-        thread_id=thread_id,
-    )
-    yield f"data: {end_event.model_dump_json()}\n\n"
-    ctx_logger.info("Finished generating streaming response")
 
 
 @app.post("/invoke")
 async def invoke_agent(request_data: RunAgentInput, request: Request):
     """
-    Main endpoint that receives AG-UI standard RunAgentInput
-    and returns streaming ag-ui-protocol responses.
+    接收 AG-UI 标准输入，并使用 AGUIAdapter 返回流式响应。
     """
-    # 使用中间件提供的 logger，并添加端点特定的上下文
-    base_logger = request.state.logger
-    
-    # 提取业务级别的 trace_id（优先使用业务数据中的 ID）
-    business_trace_id = request_data.thread_id or request_data.run_id
-    
-    # 创建端点级别的 logger
-    req_logger = base_logger.bind(
+    req_logger = request.state.logger.bind(
         run_id=request_data.run_id,
         thread_id=request_data.thread_id,
-        business_trace_id=business_trace_id,
         endpoint="/invoke"
     )
-    
+
     try:
-        req_logger.info("Received agent invoke request", 
+        req_logger.info("Received agent invoke request",
                        message_count=len(request_data.messages))
-        req_logger.debug("Full request details", request=request_data.model_dump())
 
         if not request_data.messages:
             raise HTTPException(status_code=400, detail="Request body must contain 'messages' array.")
 
         last_message = request_data.messages[-1]
-        content = last_message.content.strip()
-
-        if not content:
+        if not last_message.content.strip():
             raise HTTPException(status_code=400, detail="The last message must have non-empty 'content'.")
 
-        req_logger.info("Processing message content", content=content)
-        
-        # Use IDs from the request, or generate new ones
-        run_id = request_data.run_id or f"run_{uuid.uuid4().hex}"
-        thread_id = request_data.thread_id or f"thread_{uuid.uuid4().hex}"
-
-        return StreamingResponse(
-            generate_streaming_response(content, run_id=run_id, thread_id=thread_id),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-            }
+        # 创建 Adapter 需要的 Task 对象
+        task = Task(
+            id=request_data.run_id or f"run_{uuid.uuid4().hex}",
+            query=last_message.content,
+            thread_id=request_data.thread_id or f"thread_{uuid.uuid4().hex}"
         )
-        
+
+        req_logger.info("Forwarding task to AGUIAdapter", task_id=task.id, thread_id=task.thread_id)
+
+        # AGUIAdapter 会自动处理事件流生成和错误捕获
+        return EventSourceResponse(
+            agui_adapter.event_stream_adapter(task),
+            ping=15,
+            media_type="text/event-stream"
+        )
+
+    except HTTPException as http_exc:
+        # 重新抛出 HTTP 异常，让 FastAPI 处理
+        raise http_exc
     except Exception as e:
-        req_logger.exception("Error processing request", 
-                           error=str(e),
-                           error_type=type(e).__name__)
-        raise HTTPException(status_code=500, detail=str(e))
+        # 对于其他所有异常，记录并返回一个标准的 500 错误
+        req_logger.exception(
+            "An unexpected error occurred in /invoke endpoint",
+            error=str(e),
+            error_type=type(e).__name__
+        )
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
 
-
-
-# --- The old /test endpoint, kept for simple checks ---
-class MessageRequest(BaseModel):
-    content: str
-    metadata: Dict[str, Any] = {}
-
-@app.post("/test")
-async def test_endpoint(request: MessageRequest):
-    """
-    Simple test endpoint that returns a non-streaming response
-    """
-    return {
-        "echo": request.content,
-        "metadata": request.metadata,
-        "timestamp": time.time(),
-        "message": "This is a test response from the Python backend"
-    }
 
 if __name__ == "__main__":
     import uvicorn
