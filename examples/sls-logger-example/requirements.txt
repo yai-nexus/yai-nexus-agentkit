@@ -1,2 +1,3 @@
 # SLS 日志集成示例的最小依赖
 yai-loguru-support[sls]
+python-dotenv

@@ -20,6 +20,7 @@ export SLS_LOGSTORE=your_logstore
 import os
 import asyncio
 import time
+from dotenv import load_dotenv
 from loguru import logger
 from yai_loguru_support.sls import AliyunSlsSink
 from yai_loguru_support.utils import create_production_setup
@@ -88,4 +89,5 @@ async def main():
 
 if __name__ == "__main__":
     print("启动 SLS 日志集成示例...")
+    load_dotenv()
     asyncio.run(main())

@@ -143,10 +143,12 @@ class AliyunSlsSink(BaseSink):
             )
             
             # Test connection by listing logstores
+            from aliyun.log import ListLogstoresRequest
+            request = ListLogstoresRequest(self.sls_config.project)
             await asyncio.get_event_loop().run_in_executor(
                 self._executor,
                 self._client.list_logstores,
-                self.sls_config.project
+                request
             )
             
             self._internal_logger.info(
@@ -176,33 +178,38 @@ class AliyunSlsSink(BaseSink):
                     # Parse the serialized log record
                     log_data = json.loads(message.strip())
                     
+                    # Extract record data (loguru puts actual data in 'record' field)
+                    record = log_data.get("record", {})
+                    
                     # Extract timestamp
-                    log_time = int(log_data.get("time", time.time()))
+                    time_info = record.get("time", {})
+                    log_time = int(time_info.get("timestamp", time.time()))
                     
                     # Convert loguru record to SLS format
                     log_item = LogItem(
                         timestamp=log_time,
                         contents=[
-                            ("level", str(log_data.get("level", "INFO"))),
-                            ("message", str(log_data.get("message", ""))),
-                            ("logger", str(log_data.get("name", ""))),
-                            ("module", str(log_data.get("module", ""))),
-                            ("function", str(log_data.get("function", ""))),
-                            ("line", str(log_data.get("line", ""))),
-                            ("thread", str(log_data.get("thread", {}).get("name", ""))),
-                            ("process", str(log_data.get("process", {}).get("name", ""))),
+                            ("level", str(record.get("level", {}).get("name", "INFO"))),
+                            ("message", str(record.get("message", ""))),
+                            ("logger", str(record.get("name", ""))),
+                            ("module", str(record.get("module", ""))),
+                            ("function", str(record.get("function", ""))),
+                            ("line", str(record.get("line", ""))),
+                            ("thread", str(record.get("thread", {}).get("name", ""))),
+                            ("process", str(record.get("process", {}).get("name", ""))),
+                            ("text", str(log_data.get("text", ""))),  # 添加格式化后的完整文本
                         ]
                     )
                     
                     # Add extra fields from the log record
-                    extra = log_data.get("extra", {})
+                    extra = record.get("extra", {})
                     for key, value in extra.items():
                         if isinstance(value, (str, int, float, bool)):
                             log_item.contents.append((key, str(value)))
                     
                     # Add exception info if present
-                    if "exception" in log_data and log_data["exception"]:
-                        exc_info = log_data["exception"]
+                    if "exception" in record and record["exception"]:
+                        exc_info = record["exception"]
                         log_item.contents.extend([
                             ("exception_type", str(exc_info.get("type", ""))),
                             ("exception_value", str(exc_info.get("value", ""))),
@@ -254,10 +261,12 @@ class AliyunSlsSink(BaseSink):
             
         try:
             # Simple health check: list logstores
+            from aliyun.log import ListLogstoresRequest
+            request = ListLogstoresRequest(self.sls_config.project)
             await asyncio.get_event_loop().run_in_executor(
                 self._executor,
                 self._client.list_logstores,
-                self.sls_config.project
+                request
             )
             return True
             
@@ -267,23 +276,36 @@ class AliyunSlsSink(BaseSink):
             
     def stop(self) -> None:
         """
-        Synchronous stop method for use in atexit handlers.
+        Synchronous stop method for loguru compatibility.
         
-        This is a convenience method that runs the async stop() in a new event loop.
-        Use the async version when possible.
+        This method is called by loguru when removing the sink.
+        It runs the async stop() in a way that doesn't block the calling thread.
         """
         try:
             # Try to use existing event loop
             loop = asyncio.get_event_loop()
             if loop.is_running():
-                # If we're in a running loop, create a task
-                asyncio.create_task(super().stop())
+                # If we're in a running loop, create a task and don't wait
+                task = asyncio.create_task(super().stop())
+                # Store the task to prevent it from being garbage collected
+                if not hasattr(self, '_stop_tasks'):
+                    self._stop_tasks = []
+                self._stop_tasks.append(task)
             else:
                 # If no running loop, run directly
                 loop.run_until_complete(super().stop())
         except RuntimeError:
             # No event loop, create a new one
             asyncio.run(super().stop())
+            
+    def stop_sync(self) -> None:
+        """
+        Synchronous stop method for use in atexit handlers.
+        
+        This is a convenience method that runs the async stop() in a new event loop.
+        Use the async version when possible.
+        """
+        self.stop()
             
     def get_sls_metrics(self) -> Dict[str, Any]:
         """Get SLS-specific metrics."""

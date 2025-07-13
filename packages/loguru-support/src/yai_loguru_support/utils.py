@@ -75,8 +75,17 @@ class GracefulShutdown:
         shutdown_tasks = []
         for sink in self._sinks:
             try:
-                task = asyncio.create_task(sink.stop())
-                shutdown_tasks.append(task)
+                # Check if sink has async stop method
+                if hasattr(sink, 'stop') and callable(getattr(sink, 'stop')):
+                    stop_method = getattr(sink, 'stop')
+                    if asyncio.iscoroutinefunction(stop_method):
+                        # Async stop method
+                        task = asyncio.create_task(stop_method())
+                        shutdown_tasks.append(task)
+                    else:
+                        # Sync stop method - call it directly
+                        stop_method()
+                        print(f"Sync stop completed for {sink}")
             except Exception as e:
                 print(f"Error creating shutdown task for {sink}: {e}")
                 
