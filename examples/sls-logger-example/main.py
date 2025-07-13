@@ -42,10 +42,13 @@ async def main():
         # 2. 从环境变量创建 SLS Sink
         sls_sink = AliyunSlsSink.from_env()
         
-        # 3. 添加到 loguru (发送 INFO 及以上级别日志到 SLS)
+        # 3. 手动启动 SLS Sink (确保连接建立)
+        await sls_sink.start()
+        
+        # 4. 添加到 loguru (发送 INFO 及以上级别日志到 SLS)
         logger.add(sls_sink, serialize=True, level="INFO")
         
-        # 4. 设置优雅停机 (确保程序退出前日志完整发送)
+        # 5. 设置优雅停机 (确保程序退出前日志完整发送)
         create_production_setup([sls_sink])
         
         logger.info("SLS 日志集成已启用", 

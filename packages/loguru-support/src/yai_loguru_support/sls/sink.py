@@ -197,7 +197,6 @@ class AliyunSlsSink(BaseSink):
                             ("line", str(record.get("line", ""))),
                             ("thread", str(record.get("thread", {}).get("name", ""))),
                             ("process", str(record.get("process", {}).get("name", ""))),
-                            ("text", str(log_data.get("text", ""))),  # 添加格式化后的完整文本
                         ]
                     )
                     
@@ -210,10 +209,27 @@ class AliyunSlsSink(BaseSink):
                     # Add exception info if present
                     if "exception" in record and record["exception"]:
                         exc_info = record["exception"]
+                        
+                        # Extract traceback from text field if available
+                        full_text = log_data.get("text", "")
+                        traceback_text = ""
+                        
+                        if exc_info.get("traceback") and full_text:
+                            # Find the traceback part in the text
+                            lines = full_text.split('\n')
+                            traceback_start = -1
+                            for i, line in enumerate(lines):
+                                if line.strip().startswith("Traceback (most recent call last):"):
+                                    traceback_start = i
+                                    break
+                            
+                            if traceback_start >= 0:
+                                traceback_text = '\n'.join(lines[traceback_start:])
+                        
                         log_item.contents.extend([
                             ("exception_type", str(exc_info.get("type", ""))),
                             ("exception_value", str(exc_info.get("value", ""))),
-                            ("exception_traceback", str(exc_info.get("traceback", ""))),
+                            ("exception_traceback", traceback_text),
                         ])
                     
                     log_items.append(log_item)
