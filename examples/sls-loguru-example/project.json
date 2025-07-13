@@ -1,0 +1,30 @@
+{
+  "name": "sls-loguru-example",
+  "root": "examples/sls-loguru-example",
+  "projectType": "application",
+  "sourceRoot": "examples/sls-loguru-example",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "source ../../.venv/bin/activate && python main.py",
+        "cwd": "examples/sls-loguru-example"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "source ../../.venv/bin/activate && pytest tests/ -v",
+        "cwd": "examples/sls-loguru-example"
+      }
+    }
+  },
+  "implicitDependencies": ["loguru-support"],
+  "tags": ["scope:logging", "type:app", "lang:python"],
+  "metadata": {
+    "description": "Example demonstrating SLS (Simple Log Service) integration with loguru",
+    "technologies": ["python", "loguru", "aliyun-sls"],
+    "maintainers": ["YAI-Nexus"],
+    "purpose": "Demonstrates cloud logging integration with Aliyun SLS"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "python.pythonPath": "./.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.defaultInterpreterPath": "./.venv/bin/python",
+  "python.linting.enabled": true,
+  "python.linting.ruffEnabled": true,
+  "python.formatting.provider": "black",
+  "python.formatting.blackPath": "./.venv/bin/black",
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.suggest.paths": true,
+  "typescript.preferences.useAliasesForRenames": false,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.nx": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "**/.nx": true,
+    "**/node_modules": true,
+    "**/.venv": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/logs": true
+  },
+  "nx.enableTaskExecutionDryRunOnChange": true,
+  "nx.showNodeVersionOnStartup": false,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "nxConsole.generateAiAgentRules": true
+}

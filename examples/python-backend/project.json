@@ -1,0 +1,37 @@
+{
+  "name": "python-backend",
+  "root": "examples/python-backend",
+  "projectType": "application",
+  "sourceRoot": "examples/python-backend",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "source ../../.venv/bin/activate && python main.py",
+        "cwd": "examples/python-backend"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "source ../../.venv/bin/activate && pytest tests/ -v",
+        "cwd": "examples/python-backend"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "source ../../.venv/bin/activate && ruff check .",
+        "cwd": "examples/python-backend"
+      }
+    }
+  },
+  "implicitDependencies": ["agentkit", "loguru-support"],
+  "tags": ["scope:backend", "type:app", "lang:python"],
+  "metadata": {
+    "description": "FastAPI backend example using YAI Nexus AgentKit",
+    "technologies": ["python", "fastapi", "ag-ui-protocol", "langgraph"],
+    "maintainers": ["YAI-Nexus"],
+    "purpose": "Demonstrates AgentKit usage in a real FastAPI application"
+  }
+}

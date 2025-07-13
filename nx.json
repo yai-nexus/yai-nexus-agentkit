@@ -1,0 +1,97 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "defaultBase": "main",
+  "namedInputs": {
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/.eslintrc.json",
+      "!{projectRoot}/jest.config.[jt]s"
+    ],
+    "sharedGlobals": [
+      "{workspaceRoot}/nx.json",
+      "{workspaceRoot}/pnpm-lock.yaml",
+      "{workspaceRoot}/requirements.txt",
+      "{workspaceRoot}/tsconfig.base.json",
+      "{workspaceRoot}/.env*"
+    ]
+  },
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["production", "^production"],
+      "cache": true
+    },
+    "test": {
+      "inputs": ["default", "^production"],
+      "cache": true
+    },
+    "lint": {
+      "inputs": ["default", "^production"],
+      "cache": true
+    },
+    "format": {
+      "inputs": ["default"],
+      "cache": true
+    }
+  },
+  "workspaceLayout": {
+    "appsDir": "examples",
+    "libsDir": "packages"
+  },
+  "plugins": [
+    {
+      "plugin": "@nx/eslint/plugin",
+      "options": {
+        "targetName": "lint"
+      }
+    },
+    {
+      "plugin": "@nx/js",
+      "options": {
+        "analyzeSourceFiles": true
+      }
+    }
+  ],
+  "generators": {
+    "@nx/workspace": {
+      "enforce-module-boundaries": {
+        "depConstraints": [
+          {
+            "sourceTag": "type:lib",
+            "onlyDependOnLibsWithTags": ["type:lib"]
+          },
+          {
+            "sourceTag": "type:app",
+            "onlyDependOnLibsWithTags": ["type:lib"]
+          },
+          {
+            "sourceTag": "scope:frontend",
+            "onlyDependOnLibsWithTags": ["scope:frontend", "scope:shared"]
+          },
+          {
+            "sourceTag": "scope:backend",
+            "onlyDependOnLibsWithTags": ["scope:backend", "scope:shared", "scope:logging"]
+          },
+          {
+            "sourceTag": "scope:logging",
+            "onlyDependOnLibsWithTags": ["scope:logging", "scope:shared"]
+          },
+          {
+            "sourceTag": "lang:python",
+            "onlyDependOnLibsWithTags": ["lang:python", "scope:shared"]
+          },
+          {
+            "sourceTag": "lang:typescript",
+            "onlyDependOnLibsWithTags": ["lang:typescript", "scope:shared"]
+          }
+        ]
+      }
+    }
+  }
+}

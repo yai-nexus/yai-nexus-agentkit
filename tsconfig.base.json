@@ -14,7 +14,14 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "allowJs": true
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@yai-nexus/fekit": ["packages/fekit/src/index.ts"],
+      "@yai-nexus/fekit/*": ["packages/fekit/src/*"],
+      "@yai-nexus/pino-support": ["packages/pino-support/src/index.ts"],
+      "@yai-nexus/pino-support/*": ["packages/pino-support/src/*"]
+    }
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", ".venv", "**/__pycache__", "**/*.pyc", "logs"]
 } 

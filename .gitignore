@@ -210,6 +210,14 @@ __marimo__/
 # PyCharm
 .idea
 
+# Nx
+.nx/
+**/nx
+**/nx.bat
+# Don't ignore root nx.json, only nested ones
+examples/*/nx.json
+packages/*/nx.json
+
 # Node.js and Frontend Files
 # Logs
 logs

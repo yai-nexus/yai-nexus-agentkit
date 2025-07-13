@@ -59,7 +59,12 @@
       "Bash(echo $VIRTUAL_ENV)",
       "WebFetch(domain:loguru.readthedocs.io)",
       "Bash(uv:*)",
-      "Bash(time:*)"
+      "Bash(time:*)",
+      "Bash(npx nx init:*)",
+      "Bash(npx nx show:*)",
+      "Bash(npx nx graph:*)",
+      "Bash(npx nx run-many:*)",
+      "Bash(npx nx lint:*)"
     ],
     "deny": []
   }
