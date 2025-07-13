@@ -77,8 +77,7 @@ def setup_logging(service_name: str, config: Optional[Dict[str, Any]] = None) ->
     if final_config["file"]["enabled"]:
         _setup_file_logging(service_name, final_config)
     
-    # 设置全局日志级别
-    logger.configure(handlers=[], levels={}, extra={}, patcher=None, activation=None)
+    # 注意：不要重置处理器，否则会清空刚刚添加的处理器
 
 
 def _merge_config(default: Dict[str, Any], user_config: Dict[str, Any]) -> Dict[str, Any]:

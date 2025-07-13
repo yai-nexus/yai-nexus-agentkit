@@ -253,10 +253,8 @@ def configure_logging() -> None:
     )
 
 
-# 自动配置（导入时执行，向后兼容）
-configure_logging()
-
 # 导出默认 logger 实例（向后兼容）
+# 注意：不再自动配置，应用需要主动调用 configure_logging() 或使用 loguru-support
 logger = get_logger(contextual=True)
 
 # 导出的公共接口

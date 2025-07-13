@@ -27,23 +27,7 @@ from dotenv import load_dotenv
 # 加载环境变量
 load_dotenv()
 
-# 配置日志系统
-def configure_logging():
-    """配置应用日志 - 使用统一的日志配置系统"""
-    environment = os.getenv('ENVIRONMENT', 'development')
-    
-    if environment == 'production':
-        # 生产环境配置
-        setup_prod_logging("python-backend", level="info")
-    else:
-        # 开发环境配置
-        setup_dev_logging("python-backend")
-    
-    logger.info("Logging system initialized", 
-                environment=environment, 
-                service="python-backend")
-    
-    return logger
+# 配置日志系统已移动到 configure_app_logging 函数中
 
 def check_environment_variables():
     """检查必要的环境变量是否已设置"""
@@ -64,7 +48,23 @@ def check_environment_variables():
         logger.info("DASHSCOPE_API_KEY is configured.")
 
 # 初始化日志系统和环境检查
-configure_logging()
+# 直接调用我们的日志配置函数
+def configure_app_logging():
+    """配置应用日志 - 使用 loguru-support 统一日志配置系统"""
+    environment = os.getenv('ENVIRONMENT', 'development')
+    
+    if environment == 'production':
+        # 生产环境配置
+        setup_prod_logging("python-backend", log_level="info")
+    else:
+        # 开发环境配置
+        setup_dev_logging("python-backend")
+    
+    logger.info("Logging system initialized with loguru-support", 
+                environment=environment, 
+                service="python-backend")
+
+configure_app_logging()
 check_environment_variables()
 
 # --- LangGraph Agent Definition ---
