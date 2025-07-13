@@ -14,7 +14,9 @@ import { EnvironmentInfo } from './types';
  */
 export function detectEnvironment(): EnvironmentInfo {
   // Check for browser environment
-  const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+  const isBrowser = typeof globalThis !== 'undefined' && 
+                   typeof (globalThis as any).window !== 'undefined' && 
+                   typeof (globalThis as any).window.document !== 'undefined';
   
   // Check for Node.js environment with additional safety checks
   const isNode = typeof process !== 'undefined' && 
@@ -28,7 +30,9 @@ export function detectEnvironment(): EnvironmentInfo {
     typeof process !== 'undefined' && process.env.__NEXT_PRIVATE_PREBUNDLED_REACT != null
   ) || (
     // Next.js router and other globals
-    typeof window !== 'undefined' && (window as any).__NEXT_DATA__ != null
+    typeof globalThis !== 'undefined' && 
+    (globalThis as any).window != null && 
+    (globalThis as any).window.__NEXT_DATA__ != null
   ) || (
     // Check for Next.js specific process.env flags
     typeof process !== 'undefined' && process.env.NODE_ENV != null && 

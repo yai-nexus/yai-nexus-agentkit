@@ -9,6 +9,7 @@
 import pino from 'pino';
 import { detectEnvironment, supportsFileOperations, getEnvironmentDefaults } from './environment';
 import { createFileTransport, FileTransportOptions } from './transports/file-transport';
+import { createSlsTransportConfig } from './transports/sls-transport';
 import { LoggerConfig } from './types';
 
 // Default configuration that matches loguru-support semantics
@@ -126,22 +127,26 @@ export function createLogger(config: LoggerConfig): pino.Logger {
   
   // File transport (only in Node.js environment)
   if (finalConfig.file?.enabled && supportsFileOperations()) {
-    const fileOptions: FileTransportOptions = {
-      serviceName: finalConfig.serviceName,
-      baseDir: finalConfig.file.baseDir || 'logs',
-      strategy: finalConfig.file.strategy || 'hourly',
-      createSymlink: true,
-      createReadme: true,
-      maxSize: finalConfig.file.maxSize,
-      maxFiles: finalConfig.file.maxFiles
-    };
+    // For now, we'll create a simple file destination instead of custom transport
+    // TODO: Implement proper file transport with directory strategies later
+    const logDir = finalConfig.file.baseDir || 'logs';
+    const fileName = `${finalConfig.serviceName}.log`;
     
     transports.push({
-      target: 'pino-abstract-transport',
-      options: {},
-      // Custom transport factory
-      transport: createFileTransport(fileOptions)
+      target: 'pino/file',
+      options: {
+        destination: `${logDir}/${fileName}`,
+        mkdir: true
+      },
+      level: finalConfig.level || 'info'
     });
+  }
+  
+  // Cloud transport (SLS) - only in Node.js environment  
+  // TODO: Implement SLS transport integration with pino.transport() API
+  if (finalConfig.cloud?.enabled && finalConfig.cloud.sls && supportsFileOperations()) {
+    console.warn('SLS cloud logging is configured but not yet implemented in unified config');
+    console.warn('Please use the direct SlsTransport class for now');
   }
   
   // Create logger with transports
@@ -151,11 +156,13 @@ export function createLogger(config: LoggerConfig): pino.Logger {
     // Fallback to basic logger if no transports
     logger = pino(pinoOptions);
   } else if (transports.length === 1) {
-    // Single transport
-    logger = pino(pinoOptions, transports[0].transport || pino.destination(transports[0]));
+    // Single transport - use pino.transport() for consistency
+    logger = pino(pinoOptions, pino.transport(transports[0]));
   } else {
-    // Multiple transports
-    logger = pino(pinoOptions, pino.multistream(transports));
+    // Multiple transports - use pino.transport() with targets array
+    logger = pino(pinoOptions, pino.transport({
+      targets: transports
+    }));
   }
   
   return logger;
@@ -171,7 +178,7 @@ function mergeConfig(...configs: Array<Partial<LoggerConfig>>): LoggerConfig {
     for (const [key, value] of Object.entries(config)) {
       if (value !== undefined) {
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-          result[key] = mergeConfig(result[key] || {}, value);
+          result[key] = mergeConfig(result[key] || {}, value as Partial<LoggerConfig>);
         } else {
           result[key] = value;
         }

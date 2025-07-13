@@ -21,7 +21,6 @@
 
 import { config } from 'dotenv';
 import { createLogger, getLoggerMetadata } from '@yai-nexus/pino-support';
-import { SlsTransport } from '@yai-nexus/pino-support/sls';
 
 // 加载环境变量
 config();
@@ -30,76 +29,35 @@ async function main(): Promise<void> {
   console.log('启动 SLS 日志集成示例 (Pino 版本)...');
   
   try {
-    // 1. 设置统一的基础日志配置 (控制台 + 文件)
+    // 1. 设置统一的基础日志配置 (控制台 + 文件，SLS 待实现)
     const logger = createLogger({
       serviceName: 'sls-pino-example',
-      level: 'info',
+      level: 'debug',
       console: { enabled: true, pretty: true },
       file: { enabled: true, strategy: 'hourly' }
+      // Note: SLS cloud logging through unified config is not yet implemented
+      // For SLS integration, use the direct SlsTransport class approach
     });
     
     logger.info('启动 SLS 日志集成示例', { service: 'sls-pino-example', version: '0.1.0' });
     
-    // 2. 检查必要的环境变量
-    const requiredVars = ['SLS_ENDPOINT', 'SLS_AK_ID', 'SLS_AK_KEY', 'SLS_PROJECT', 'SLS_LOGSTORE'];
-    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    // 2. 演示统一日志配置功能
+    logger.info('演示统一日志配置功能（控制台 + 文件输出）');
+    logger.info('注意：SLS 云端日志集成尚未在统一配置中实现，需要直接使用 SlsTransport 类');
     
-    if (missingVars.length > 0) {
-      logger.error('缺少必要的环境变量', { missingVars });
-      logger.error('请参考 README.md 设置环境变量');
-      return;
-    }
-    
-    // 3. 创建 SLS Transport
-    const slsTransport = new SlsTransport({
-      endpoint: process.env.SLS_ENDPOINT!,
-      accessKeyId: process.env.SLS_AK_ID!,
-      accessKeySecret: process.env.SLS_AK_KEY!,
-      project: process.env.SLS_PROJECT!,
-      logstore: process.env.SLS_LOGSTORE!,
-      level: 'info'
-    });
-    
-    // 4. 启动 SLS Transport
-    await slsTransport.start();
-    
-    // 5. 创建带 SLS transport 的新 logger
-    const loggerWithSls = createLogger({
-      serviceName: 'sls-pino-example',
-      level: 'info',
-      console: { enabled: true, pretty: true },
-      file: { enabled: true, strategy: 'hourly' },
-      cloud: {
-        enabled: true,
-        sls: {
-          endpoint: process.env.SLS_ENDPOINT!,
-          accessKeyId: process.env.SLS_AK_ID!,
-          accessKeySecret: process.env.SLS_AK_KEY!,
-          project: process.env.SLS_PROJECT!,
-          logstore: process.env.SLS_LOGSTORE!
-        }
-      }
-    });
-    
-    logger.info('SLS 日志集成已启用', {
-      project: process.env.SLS_PROJECT,
-      logstore: process.env.SLS_LOGSTORE,
-      metadata: getLoggerMetadata(loggerWithSls)
-    });
-    
-    // 6. 发送示例日志
-    loggerWithSls.info('这是一个简单的 INFO 日志');
-    loggerWithSls.warn('这是一个 WARNING 日志', { userId: 'demo_user' });
+    // 发送示例日志到控制台和文件
+    logger.info('这是一个简单的 INFO 日志');
+    logger.warn('这是一个 WARNING 日志', { userId: 'demo_user' });
     
     // 带上下文的日志
-    const contextLogger = loggerWithSls.child({ requestId: 'req_123', action: 'demo' });
+    const contextLogger = logger.child({ requestId: 'req_123', action: 'demo' });
     contextLogger.info('带上下文的日志');
     
     // 错误日志演示
     try {
       throw new Error('这是一个演示错误');
     } catch (error) {
-      loggerWithSls.error('这是一个自动捕获的异常日志', {
+      logger.error('这是一个自动捕获的异常日志', {
         error: {
           name: (error as Error).name,
           message: (error as Error).message,
@@ -113,7 +71,7 @@ async function main(): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 100)); // 模拟一些工作
     const duration = Date.now() - startTime;
     
-    loggerWithSls.info('操作完成', {
+    logger.info('操作完成', {
       operation: 'demo_task',
       durationMs: duration,
       success: true,
@@ -123,13 +81,8 @@ async function main(): Promise<void> {
       }
     });
     
-    logger.info('示例运行结束，等待日志发送...');
-    
-    // 7. 等待批处理发送 (SLS 使用批量发送优化性能)
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
-    // 8. 优雅停机
-    await slsTransport.stop();
+    logger.info('基础日志示例完成（控制台 + 文件输出）');
+    logger.info('日志文件位置: logs/current/<服务名>.log');
     
     logger.info('SLS 日志示例完成');
     

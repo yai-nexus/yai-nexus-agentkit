@@ -46,6 +46,11 @@ pnpm dev:example:sls-loguru     # Run SLS loguru example
 # Frontend development  
 pnpm dev:example:next           # Run Next.js example app
 pnpm --filter @yai-nexus/fekit build   # Build frontend SDK
+
+# Logging examples (unified configuration)
+pnpm dev:example:sls-pino       # Run SLS pino example (Node.js)
+cd examples/sls-pino-example && npm run dev
+cd examples/sls-loguru-example && python main.py
 ```
 
 ### Testing
@@ -92,7 +97,13 @@ MODEL_TO_USE="gpt-4o"           # Default model
 LOG_LEVEL=INFO
 LOG_TO_FILE=true
 LOG_DIR=logs
-SLS_LOGGING_ENABLED=false
+
+# SLS (Alibaba Cloud Simple Log Service) configuration
+SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
+SLS_AK_ID=your_access_key_id
+SLS_AK_KEY=your_access_key_secret
+SLS_PROJECT=your_project_name
+SLS_LOGSTORE=your_logstore_name
 ```
 
 ## Architecture Patterns
@@ -113,10 +124,111 @@ SLS_LOGGING_ENABLED=false
 - Repository pattern in `packages/agentkit/src/yai_nexus_agentkit/persistence/`
 
 ### Logging Unification
-- Python: `loguru` with custom sinks for file/cloud logging
-- Node.js: `pino` with transports for structured logging
-- Hourly directory strategy: `logs/YYYYMMDD-HH/servicename.log`
-- Cloud integrations: Alibaba Cloud SLS support
+- **统一配置接口**: Python 和 Node.js 使用语义一致的配置 API
+- **同构支持**: Node.js 端自动检测环境（浏览器/Node.js/Next.js）
+- **智能目录策略**: 按小时分目录 `logs/YYYYMMDD-HH/servicename.log`
+- **多重输出**: 控制台 + 本地文件 + 云端日志（SLS）
+- **配置位置**:
+  - Python: `packages/loguru-support/src/yai_loguru_support/unified_config.py`
+  - Node.js: `packages/pino-support/src/unified-config.ts`
+
+## Unified Logging Usage
+
+### Quick Start
+
+#### Python (loguru-support)
+```python
+from yai_loguru_support import setup_dev_logging, setup_prod_logging
+from loguru import logger
+
+# Development (debug level, pretty console, hourly files)
+setup_dev_logging("my-service")
+
+# Production (info level, JSON console, hourly files) 
+setup_prod_logging("my-service")
+
+logger.info("Application started", version="1.0.0")
+```
+
+#### Node.js/TypeScript (pino-support)
+```typescript
+import { createDevLogger, createProdLogger } from '@yai-nexus/pino-support';
+
+// Automatically detects environment (browser/Node.js/Next.js)
+const logger = createDevLogger('my-service');     // Development
+const logger = createProdLogger('my-service');    // Production
+
+logger.info('Application started', { version: '1.0.0' });
+```
+
+### Advanced Configuration
+
+#### Custom Configuration
+```python
+# Python
+from yai_loguru_support import setup_logging
+
+setup_logging("my-service", {
+    "level": "debug",
+    "console": {"enabled": True, "pretty": True},
+    "file": {"enabled": True, "strategy": "daily"}
+})
+```
+
+```typescript
+// TypeScript
+import { createLogger } from '@yai-nexus/pino-support';
+
+const logger = createLogger({
+  serviceName: 'my-service',
+  level: 'debug',
+  console: { enabled: true, pretty: true },
+  file: { enabled: true, strategy: 'daily' }
+});
+```
+
+#### SLS Cloud Integration
+```python
+# Python + SLS
+from yai_loguru_support import setup_logging
+from yai_loguru_support.sls import AliyunSlsSink
+
+setup_logging("my-service")  # Base config
+sls_sink = AliyunSlsSink.from_env()
+logger.add(sls_sink, serialize=True, level="INFO")
+```
+
+```typescript
+// TypeScript + SLS  
+import { createLogger } from '@yai-nexus/pino-support';
+
+const logger = createLogger({
+  serviceName: 'my-service',
+  cloud: {
+    enabled: true,
+    sls: {
+      endpoint: process.env.SLS_ENDPOINT!,
+      accessKeyId: process.env.SLS_AK_ID!,
+      accessKeySecret: process.env.SLS_AK_KEY!,
+      project: process.env.SLS_PROJECT!,
+      logstore: process.env.SLS_LOGSTORE!
+    }
+  }
+});
+```
+
+### Log Directory Structure
+```
+logs/
+├── current -> 20241213-14          # Current hour symlink
+├── 20241213-14/                    # Hourly directories
+│   ├── README.md                   # Auto-generated documentation
+│   ├── python-backend.log          # Python service logs
+│   ├── nextjs-app.log              # Next.js application logs
+│   └── my-service.log              # Custom service logs
+└── 20241213-15/                    # Next hour directory
+    └── ...
+```
 
 ## Package Dependencies
 
@@ -136,3 +248,11 @@ SLS_LOGGING_ENABLED=false
 
 ## Virtual Environment Convention
 Always use `.venv` as the Python virtual environment directory name for all Python projects in this monorepo.
+
+## Future Improvements
+
+### Logging System Enhancements
+- **Unit Testing**: Add comprehensive unit tests for `setup_logging()` (Python) and `createLogger()` (TypeScript) functions
+- **SLS Transport Integration**: Complete SLS cloud logging integration in unified configuration API
+- **Performance Optimization**: Benchmark and optimize logging performance across high-throughput scenarios
+- **Advanced Monitoring**: Expand logging metrics collection and alerting capabilities

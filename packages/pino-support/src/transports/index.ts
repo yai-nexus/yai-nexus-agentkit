@@ -3,3 +3,4 @@
  */
 
 export * from './file-transport';
+export * from './sls-transport';
