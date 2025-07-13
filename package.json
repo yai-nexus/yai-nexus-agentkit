@@ -1,17 +1,20 @@
 {
-  "name": "yai-nexus-fekit-monorepo",
+  "name": "yai-nexus-agentkit-monorepo",
   "version": "0.2.6",
   "private": true,
-  "description": "Monorepo for yai-nexus-fekit SDK and its example applications.",
+  "description": "Monorepo for yai-nexus-agentkit SDK and its example applications.",
   "scripts": {
-    "dev:sdk": "npm run dev --workspace=@yai-nexus/fekit",
-    "build:sdk": "npm run build --workspace=@yai-nexus/fekit",
-    "dev:example:next": "npm run dev --workspace=nextjs-app",
-    "cleanup-logs": "node scripts/cleanup-logs.js --verbose",
-    "cleanup-logs:dry": "node scripts/cleanup-logs.js --dry-run --verbose",
-    "logs:stats": "node scripts/cleanup-logs.js --stats",
-    "logs:cleanup:14d": "node scripts/cleanup-logs.js --retention-days 14 --verbose",
-    "logs:cleanup:1gb": "node scripts/cleanup-logs.js --max-size 1GB --verbose"
+    "dev:sdk": "pnpm --filter agentkit dev",
+    "build:sdk": "pnpm --filter agentkit build",
+    "dev:example:next": "pnpm --filter nextjs-app dev",
+    "dev:example:python": "cd examples/python-backend && source .venv/bin/activate && pip install -r requirements.txt && python main.py",
+    "dev:example:sls-loguru": "cd examples/sls-loguru-example && source .venv/bin/activate && pip install -r requirements.txt && python main.py",
+    "logs:run": "node scripts/cleanup-logs.js",
+    "logs:cleanup": "pnpm logs:run -- --verbose",
+    "logs:cleanup:dry": "pnpm logs:run -- --dry-run --verbose",
+    "logs:stats": "pnpm logs:run -- --stats",
+    "logs:cleanup:14d": "pnpm logs:run -- --retention-days 14 --verbose",
+    "logs:cleanup:1gb": "pnpm logs:run -- --max-size 1GB --verbose"
   },
   "workspaces": [
     "packages/*",
