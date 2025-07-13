@@ -72,24 +72,32 @@ class AliyunSlsSink(BaseSink):
         ```python
         from yai_loguru_support.sls import AliyunSlsSink, SlsConfig
         from loguru import logger
+        import asyncio
         
-        config = SlsConfig(
-            endpoint="cn-hangzhou.log.aliyuncs.com",
-            access_key_id="your_key_id",
-            access_key="your_key",
-            project="your_project",
-            logstore="your_logstore"
-        )
+        async def main():
+            config = SlsConfig(
+                endpoint="cn-hangzhou.log.aliyuncs.com",
+                access_key_id="your_key_id",
+                access_key="your_key",
+                project="your_project",
+                logstore="your_logstore"
+            )
+            
+            # Method 1: Manual lifecycle management
+            sls_sink = AliyunSlsSink(config)
+            try:
+                await sls_sink.async_start()
+                logger.add(sls_sink, serialize=True, level="INFO")
+                logger.info("Hello SLS!", user_id="123")
+            finally:
+                await sls_sink.async_close()
+            
+            # Method 2: Using async context manager (recommended)
+            async with AliyunSlsSink(config) as sls_sink:
+                logger.add(sls_sink, serialize=True, level="INFO")
+                logger.info("Hello SLS!", user_id="123")
         
-        sls_sink = AliyunSlsSink(config)
-        logger.add(sls_sink, serialize=True, level="INFO")
-        
-        # Use logger normally
-        logger.info("Hello SLS!", user_id="123")
-        
-        # Graceful shutdown
-        import atexit
-        atexit.register(lambda: asyncio.run(sls_sink.stop()))
+        asyncio.run(main())
         ```
     """
     
@@ -100,9 +108,7 @@ class AliyunSlsSink(BaseSink):
         super().__init__(config)
         self.sls_config = config
         self._client: Optional[LogClient] = None
-        
-        # Start the sink automatically
-        asyncio.create_task(self.start())
+        self._cleanup_task: Optional[asyncio.Task] = None
         
     @classmethod
     def from_env(cls, **kwargs) -> "AliyunSlsSink":
@@ -290,29 +296,55 @@ class AliyunSlsSink(BaseSink):
             self._internal_logger.warning(f"SLS health check failed: {e}")
             return False
             
+    async def async_start(self) -> None:
+        """
+        Start the sink asynchronously.
+        
+        This method should be called explicitly to start the sink.
+        Recommended usage in async environments.
+        """
+        await self.start()
+    
+    async def async_close(self) -> None:
+        """
+        Close the sink asynchronously.
+        
+        This method should be called explicitly to close the sink.
+        Recommended usage in async environments.
+        """
+        await self.stop()
+    
+    async def __aenter__(self):
+        """
+        Async context manager entry.
+        
+        Automatically starts the sink when entering the context.
+        """
+        await self.async_start()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """
+        Async context manager exit.
+        
+        Automatically closes the sink when exiting the context.
+        """
+        await self.async_close()
+    
     def stop(self) -> None:
         """
         Synchronous stop method for loguru compatibility.
         
         This method is called by loguru when removing the sink.
-        It runs the async stop() in a way that doesn't block the calling thread.
+        It runs the async close in a way that's compatible with sync contexts.
         """
         try:
-            # Try to use existing event loop
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                # If we're in a running loop, create a task and don't wait
-                task = asyncio.create_task(super().stop())
-                # Store the task to prevent it from being garbage collected
-                if not hasattr(self, '_stop_tasks'):
-                    self._stop_tasks = []
-                self._stop_tasks.append(task)
-            else:
-                # If no running loop, run directly
-                loop.run_until_complete(super().stop())
+            loop = asyncio.get_running_loop()
+            # Create a background task and store reference to prevent GC
+            self._cleanup_task = loop.create_task(self.async_close())
         except RuntimeError:
-            # No event loop, create a new one
-            asyncio.run(super().stop())
+            # No running event loop, create a new one
+            asyncio.run(self.async_close())
             
     def get_sls_metrics(self) -> Dict[str, Any]:
         """Get SLS-specific metrics."""

@@ -54,11 +54,19 @@ def configure_app_logging():
     environment = os.getenv('ENVIRONMENT', 'development')
     
     if environment == 'production':
-        # 生产环境配置
-        setup_prod_logging("python-backend", log_level="info")
+        # 生产环境配置 - 使用根目录的 logs 文件夹
+        setup_logging("python-backend", {
+            "level": "info",
+            "console": {"enabled": True, "pretty": False},  # 生产环境不美化
+            "file": {"enabled": True, "strategy": "hourly", "baseDir": "../../logs"}
+        })
     else:
-        # 开发环境配置
-        setup_dev_logging("python-backend")
+        # 开发环境配置 - 使用根目录的 logs 文件夹
+        setup_logging("python-backend", {
+            "level": "debug", 
+            "console": {"enabled": True, "pretty": True},
+            "file": {"enabled": True, "strategy": "hourly", "baseDir": "../../logs"}
+        })
     
     logger.info("Logging system initialized with loguru-support", 
                 environment=environment, 

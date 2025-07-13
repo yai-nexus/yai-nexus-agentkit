@@ -22,12 +22,17 @@ config();
 async function main(): Promise<void> {
   console.log('启动 SLS 日志集成示例 (Pino 版本)...');
   try {
-    // 1. 设置统一的基础日志配置 (控制台 + 文件)
+    // 1. 设置日志配置 (写入当前小时目录)  
+    // 注意：pino-support 不支持 hourly strategy，只能写入固定路径
+    const now = new Date();
+    const currentHour = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}`;
+    const logPath = `../../logs/${currentHour}/sls-pino-example.log`;
+    
     const logger = createLogger({
       serviceName: 'sls-pino-example',
       level: 'debug',
       console: { enabled: true, pretty: true },
-      file: { enabled: true }
+      file: { enabled: true, path: logPath }
     });
 
     logger.info('服务启动', { service: 'sls-pino-example', version: '0.1.0' });
@@ -44,7 +49,7 @@ async function main(): Promise<void> {
         }
       });
     }
-    logger.info('日志演示结束，日志文件位置: logs/current/<服务名>.log');
+    logger.info('日志演示结束，日志文件位置: ../../logs/current/sls-pino-example.log');
   } catch (error) {
     console.error('SLS 集成失败:', error);
     process.exit(1);

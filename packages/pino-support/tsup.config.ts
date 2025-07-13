@@ -1,12 +1,7 @@
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
-  entry: {
-    index: 'src/index.ts',
-    'sls/index': 'src/sls/index.ts',
-    'monitoring/index': 'src/monitoring/index.ts',
-    'utils/index': 'src/utils/index.ts'
-  },
+  entry: ['src/index.ts'],
   format: ['cjs', 'esm'],
   dts: true,
   sourcemap: true,
@@ -14,7 +9,7 @@ export default defineConfig({
   splitting: false,
   treeshake: true,
   minify: false,
-  external: ['pino', '@alicloud/sls'],
+  external: ['pino', 'pino-pretty', 'pino/file'],
   esbuildOptions: (options) => {
     options.conditions = ['module']
   }
