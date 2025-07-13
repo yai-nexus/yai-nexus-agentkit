@@ -11,6 +11,12 @@ import { detectEnvironment, supportsFileOperations, getEnvironmentDefaults } fro
 import { createFileTransport, FileTransportOptions } from './transports/file-transport';
 import { createSlsTransportConfig } from './transports/sls-transport';
 import { LoggerConfig } from './types';
+import { join } from 'path';
+import { existsSync } from 'fs';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { findMonorepoRoot } from './utils';
+// 直接用 pino.multistream，无需单独依赖
 
 // Default configuration that matches loguru-support semantics
 const DEFAULT_CONFIG: Partial<LoggerConfig> = {
@@ -82,90 +88,68 @@ export function createLogger(config: LoggerConfig): pino.Logger {
       isNextJs: env.isNextJs
     }
   };
-  
-  // Determine transports based on environment and configuration
-  const transports: any[] = [];
-  
-  // Console transport
+
+  // 多路输出流数组
+  const streams: any[] = [];
+
+  // 文件流
+  if (finalConfig.file?.enabled && supportsFileOperations()) {
+    const fileTransportOptions: FileTransportOptions = {
+      baseDir: finalConfig.file.baseDir || 'logs',
+      strategy: finalConfig.file.strategy || 'hourly',
+      serviceName: finalConfig.serviceName,
+      createSymlink: true,
+      createReadme: true,
+      maxSize: finalConfig.file.maxSize,
+      maxFiles: finalConfig.file.maxFiles,
+      projectRoot: findMonorepoRoot(),
+    };
+    const fileTransport = createFileTransport(fileTransportOptions);
+    streams.push({ stream: fileTransport });
+  }
+
+  // 控制台流
   if (finalConfig.console?.enabled) {
     if (env.isBrowser) {
-      // Browser console transport
-      transports.push({
-        target: 'pino/browser',
-        options: {
-          write: (obj: any) => {
-            // Use browser console with appropriate method based on level
-            const level = obj.level;
-            const method = level >= 50 ? 'error' : level >= 40 ? 'warn' : level >= 30 ? 'info' : 'log';
-            console[method](obj);
-          }
-        }
-      });
+      // 浏览器环境下，直接用 console
+      streams.push({ stream: { write: (msg: string) => console.log(msg) } });
     } else {
-      // Node.js console transport
       if (finalConfig.console?.pretty && process.env.NODE_ENV !== 'production') {
-        transports.push({
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'yyyy-mm-dd HH:MM:ss.l',
-            ignore: 'pid,hostname',
-            messageFormat: '{service} [{level}] {msg}'
-          }
-        });
+        // 用 pino-pretty 美化
+        try {
+          // 动态引入 pino-pretty，避免依赖问题
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const pretty = require('pino-pretty');
+          streams.push({ stream: pretty() });
+        } catch {
+          streams.push({ stream: process.stdout });
+        }
       } else {
-        // JSON console output for production
-        transports.push({
-          target: 'pino/file',
-          options: {
-            destination: 1 // stdout
-          }
-        });
+        streams.push({ stream: process.stdout });
       }
     }
   }
-  
-  // File transport (only in Node.js environment)
-  if (finalConfig.file?.enabled && supportsFileOperations()) {
-    // For now, we'll create a simple file destination instead of custom transport
-    // TODO: Implement proper file transport with directory strategies later
-    const logDir = finalConfig.file.baseDir || 'logs';
-    const fileName = `${finalConfig.serviceName}.log`;
-    
-    transports.push({
-      target: 'pino/file',
-      options: {
-        destination: `${logDir}/${fileName}`,
-        mkdir: true
-      },
-      level: finalConfig.level || 'info'
-    });
-  }
-  
-  // Cloud transport (SLS) - only in Node.js environment  
-  // TODO: Implement SLS transport integration with pino.transport() API
+
+  // SLS 云日志流
   if (finalConfig.cloud?.enabled && finalConfig.cloud.sls && supportsFileOperations()) {
-    console.warn('SLS cloud logging is configured but not yet implemented in unified config');
-    console.warn('Please use the direct SlsTransport class for now');
+    try {
+      // 动态引入 SLS transport
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { createSlsTransport } = require('./transports/sls-transport');
+      const slsStream = createSlsTransport(finalConfig.cloud.sls);
+      streams.push({ stream: slsStream });
+    } catch {
+      console.warn('SLS cloud logging is configured but not yet implemented or missing dependency');
+    }
   }
-  
-  // Create logger with transports
-  let logger: pino.Logger;
-  
-  if (transports.length === 0) {
-    // Fallback to basic logger if no transports
-    logger = pino(pinoOptions);
-  } else if (transports.length === 1) {
-    // Single transport - use pino.transport() for consistency
-    logger = pino(pinoOptions, pino.transport(transports[0]));
-  } else {
-    // Multiple transports - use pino.transport() with targets array
-    logger = pino(pinoOptions, pino.transport({
-      targets: transports
-    }));
+
+  // 如果没有任何流，降级为默认 logger
+  if (streams.length === 0) {
+    return pino(pinoOptions);
   }
-  
-  return logger;
+
+  // 多路输出
+  return pino(pinoOptions, pino.multistream(streams));
 }
 
 /**

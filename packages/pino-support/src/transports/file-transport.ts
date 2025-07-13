@@ -9,6 +9,7 @@ import { createWriteStream, WriteStream } from 'fs';
 import { mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { Transform } from 'stream';
+import { findMonorepoRoot } from '../utils';
 
 export interface FileTransportOptions {
   /** Base directory for log files */
@@ -25,6 +26,8 @@ export interface FileTransportOptions {
   maxSize?: number;
   /** Maximum number of files to keep */
   maxFiles?: number;
+  /** 项目根目录（可选，优先使用） */
+  projectRoot?: string;
 }
 
 interface DirectoryStrategy {
@@ -36,12 +39,16 @@ interface DirectoryStrategy {
 class HourlyDirectoryStrategy implements DirectoryStrategy {
   private currentHour: string | null = null;
   private currentDir: string | null = null;
+  private projectRoot: string;
 
   constructor(
     private baseDir: string,
     private createSymlink: boolean = true,
-    private createReadme: boolean = true
-  ) {}
+    private createReadme: boolean = true,
+    projectRoot?: string
+  ) {
+    this.projectRoot = projectRoot || findMonorepoRoot();
+  }
 
   getLogPath(serviceName: string): string {
     const now = new Date();
@@ -52,7 +59,8 @@ class HourlyDirectoryStrategy implements DirectoryStrategy {
       return join(this.currentDir, `${serviceName}.log`);
     }
     
-    const logDir = join(process.cwd(), this.baseDir, hourDir);
+    // 使用项目根目录而不是当前工作目录
+    const logDir = join(this.projectRoot, this.baseDir, hourDir);
     
     // Ensure directory exists
     this.ensureDirectory(logDir).then(() => {
@@ -78,7 +86,7 @@ class HourlyDirectoryStrategy implements DirectoryStrategy {
   }
 
   getCurrentDirectory(): string {
-    return this.currentDir || join(process.cwd(), this.baseDir);
+    return this.currentDir || join(this.projectRoot, this.baseDir);
   }
 
   getMetadata(): Record<string, any> {
@@ -110,7 +118,7 @@ class HourlyDirectoryStrategy implements DirectoryStrategy {
   private async createCurrentSymlink(hourDir: string): Promise<void> {
     try {
       const { symlink, unlink } = await import('fs/promises');
-      const currentLink = join(process.cwd(), this.baseDir, 'current');
+      const currentLink = join(this.projectRoot, this.baseDir, 'current');
       
       try {
         await unlink(currentLink);
@@ -169,11 +177,15 @@ class HourlyDirectoryStrategy implements DirectoryStrategy {
 class DailyDirectoryStrategy implements DirectoryStrategy {
   private currentDay: string | null = null;
   private currentDir: string | null = null;
+  private projectRoot: string;
 
   constructor(
     private baseDir: string,
-    private createSymlink: boolean = true
-  ) {}
+    private createSymlink: boolean = true,
+    projectRoot?: string
+  ) {
+    this.projectRoot = projectRoot || findMonorepoRoot();
+  }
 
   getLogPath(serviceName: string): string {
     const now = new Date();
@@ -183,7 +195,8 @@ class DailyDirectoryStrategy implements DirectoryStrategy {
       return join(this.currentDir, `${serviceName}.log`);
     }
     
-    const logDir = join(process.cwd(), this.baseDir, dayDir);
+    // 使用项目根目录而不是当前工作目录
+    const logDir = join(this.projectRoot, this.baseDir, dayDir);
     
     this.ensureDirectory(logDir).then(() => {
       this.currentDay = dayDir;
@@ -198,7 +211,7 @@ class DailyDirectoryStrategy implements DirectoryStrategy {
   }
 
   getCurrentDirectory(): string {
-    return this.currentDir || join(process.cwd(), this.baseDir);
+    return this.currentDir || join(this.projectRoot, this.baseDir);
   }
 
   getMetadata(): Record<string, any> {
@@ -228,7 +241,7 @@ class DailyDirectoryStrategy implements DirectoryStrategy {
   private async createCurrentSymlink(dayDir: string): Promise<void> {
     try {
       const { symlink, unlink } = await import('fs/promises');
-      const currentLink = join(process.cwd(), this.baseDir, 'current');
+      const currentLink = join(this.projectRoot, this.baseDir, 'current');
       
       try {
         await unlink(currentLink);
@@ -244,13 +257,18 @@ class DailyDirectoryStrategy implements DirectoryStrategy {
 }
 
 class SimpleFileStrategy implements DirectoryStrategy {
+  private projectRoot: string;
   constructor(
     private baseDir: string,
-    private filenameTemplate: string = '{serviceName}.log'
-  ) {}
+    private filenameTemplate: string = '{serviceName}.log',
+    projectRoot?: string
+  ) {
+    this.projectRoot = projectRoot || findMonorepoRoot();
+  }
 
   getLogPath(serviceName: string): string {
-    const logDir = join(process.cwd(), this.baseDir);
+    // 使用项目根目录而不是当前工作目录
+    const logDir = join(this.projectRoot, this.baseDir);
     
     this.ensureDirectory(logDir).catch(() => {});
     
@@ -259,7 +277,7 @@ class SimpleFileStrategy implements DirectoryStrategy {
   }
 
   getCurrentDirectory(): string {
-    return join(process.cwd(), this.baseDir);
+    return join(this.projectRoot, this.baseDir);
   }
 
   getMetadata(): Record<string, any> {
@@ -289,24 +307,31 @@ export class FileTransport extends Transform {
     
     const baseDir = options.baseDir || 'logs';
     const strategy = options.strategy || 'hourly';
+    const projectRoot = options.projectRoot;
+    
+    // 调试输出
+    const projectRootForTransport = projectRoot || findMonorepoRoot();
+    console.log('[FileTransport] findMonorepoRoot() =', projectRootForTransport);
     
     switch (strategy) {
       case 'hourly':
         this.strategy = new HourlyDirectoryStrategy(
           baseDir,
           options.createSymlink,
-          options.createReadme
+          options.createReadme,
+          projectRoot
         );
         break;
       case 'daily':
         this.strategy = new DailyDirectoryStrategy(
           baseDir,
-          options.createSymlink
+          options.createSymlink,
+          projectRoot
         );
         break;
       case 'simple':
       default:
-        this.strategy = new SimpleFileStrategy(baseDir);
+        this.strategy = new SimpleFileStrategy(baseDir, undefined, projectRoot);
         break;
     }
   }
@@ -365,5 +390,10 @@ export class FileTransport extends Transform {
 }
 
 export function createFileTransport(options: FileTransportOptions): FileTransport {
+  return new FileTransport(options);
+}
+
+// Default export for pino transport
+export default function(options: FileTransportOptions): FileTransport {
   return new FileTransport(options);
 }
