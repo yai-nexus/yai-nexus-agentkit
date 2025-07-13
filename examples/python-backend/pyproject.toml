@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yai-nexus-agentkit-python-backend-example"
+version = "0.2.6"
+description = "Python backend example demonstrating YAI Nexus AgentKit with FastAPI and AG-UI protocol"
+authors = [
+    { name="YAI-Nexus", email="contact@yai-nexus.com" },
+]
+license = { file = "../../LICENSE" }
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Framework :: FastAPI",
+]
+dependencies = [
+    "fastapi==0.111.0",
+    "uvicorn[standard]==0.34.1",
+    "pydantic>=2.11.2",
+    "python-multipart==0.0.20",
+    "ag-ui-protocol",
+    "python-dotenv>=1.0.0",
+    "langgraph>=0.5.2",
+    "langchain-core>=0.3.68",
+    "langchain-openai>=0.3.27",
+    "sse-starlette>=2.1.0",
+    "yai-nexus-agentkit",
+    "yai-loguru-support",
+]
+
+[project.urls]
+Homepage = "https://github.com/yai-nexus/yai-nexus-agentkit"
+Repository = "https://github.com/yai-nexus/yai-nexus-agentkit"
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "black",
+    "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

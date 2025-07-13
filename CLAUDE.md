@@ -29,11 +29,11 @@ This is a monorepo for the YAI Nexus AgentKit ecosystem, providing Python backen
 # Install all workspace dependencies
 pnpm install
 
-# Python backend setup (uses .venv)
-cd packages/agentkit
-python -m venv .venv
+# Python backend setup (uses .venv + uv for speed)
+uv venv .venv
 source .venv/bin/activate  # Linux/Mac
-pip install -e ".[all]"
+# One-command install for all Python packages and examples (10-100x faster)
+uv pip install -r requirements.txt
 ```
 
 ### Development Workflows
@@ -245,6 +245,62 @@ logs/
 - Pino for structured logging
 - TailwindCSS 4 for styling
 - AG-UI Client for backend integration
+
+## Python Dependency Management
+
+### Monorepo Structure
+- **Root `requirements.txt`**: Unified entry point for all Python dependencies
+- **Package `pyproject.toml`**: Each package/example maintains its own dependency specification
+- **Installation Strategy**: Use `-e ./path/to/package` for editable local package installation
+
+### Installation Options
+```bash
+# Recommended: Install all packages and examples at once
+uv pip install -r requirements.txt
+
+# Alternative: Install individual packages for focused development
+cd packages/agentkit && uv pip install -e .
+cd examples/python-backend && uv pip install -e .
+```
+
+### Package Structure
+- All Python packages use standard `pyproject.toml` for dependency management
+- No more individual `requirements.txt` files in sub-packages
+- Local package dependencies are resolved automatically through editable installs
+
+## Python Package Manager: uv
+
+### Why uv?
+- **Extreme Speed**: 10-100x faster than pip for package installation
+- **Drop-in Replacement**: 100% compatible with pip commands
+- **Better Dependency Resolution**: More reliable than pip
+- **Built-in Virtual Environment**: `uv venv` replaces `python -m venv`
+
+### Quick Start with uv
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create and activate virtual environment
+uv venv .venv
+source .venv/bin/activate
+
+# Install dependencies (much faster than pip)
+uv pip install -r requirements.txt
+```
+
+### Common uv Commands
+```bash
+# Virtual environment
+uv venv .venv                    # Create virtual environment
+source .venv/bin/activate        # Activate (same as before)
+
+# Package management
+uv pip install -r requirements.txt  # Install from requirements
+uv pip install package              # Install single package
+uv pip freeze                       # List installed packages
+uv pip uninstall package            # Uninstall package
+```
 
 ## Virtual Environment Convention
 Always use `.venv` as the Python virtual environment directory name for all Python projects in this monorepo.

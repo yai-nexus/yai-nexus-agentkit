@@ -1,0 +1,10 @@
+# YAI Nexus AgentKit Monorepo Dependencies
+# Install all local packages and examples
+
+# Core packages
+-e ./packages/agentkit
+-e ./packages/loguru-support
+
+# Examples
+-e ./examples/python-backend
+-e ./examples/sls-loguru-example
