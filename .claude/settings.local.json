@@ -54,7 +54,9 @@
       "Bash(OPENAI_API_KEY=\"\" python main.py)",
       "Bash(export OPENAI_API_KEY=\"test-key\")",
       "Bash(pkill:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(pip show:*)",
+      "Bash(echo $VIRTUAL_ENV)"
     ],
     "deny": []
   }

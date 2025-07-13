@@ -13,11 +13,11 @@ from dataclasses import dataclass, field
 
 try:
     from aliyun.log import LogClient, PutLogsRequest, LogItem
-    from aliyun.log.exceptions import LogException
+    from aliyun.log.logexception import LogException
 except ImportError:
     raise ImportError(
         "aliyun-log-python-sdk is required for SLS support. "
-        "Install with: pip install aliyun-log-python-sdk>=0.7.8"
+        "Install with: pip install yai-loguru-support[sls]"
     )
 
 from ..base import BaseSink, SinkConfig, SinkError, SinkConnectionError
