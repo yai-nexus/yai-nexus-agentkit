@@ -1,5 +1,5 @@
 ---
-globs: packages/agentkit/**,examples/python-backend/**,examples/sls-logger-example/**
+globs: packages/agentkit/**,examples/python-backend/**,examples/sls-loguru-example/**
 alwaysApply: false
 ---
 # Python 开源项目开发规则

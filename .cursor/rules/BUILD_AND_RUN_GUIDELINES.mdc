@@ -1,0 +1,97 @@
+---
+description: 构建项目与运行示例的规范
+alwaysApply: false
+---
+# 如何构建项目与运行示例
+
+本文档提供了在 `yai-nexus-agentkit` monorepo 中成功运行 `examples/nextjs-app` 和 `examples/python-backend` 需要知晓的背景信息
+
+---
+
+## 1. Nx 工作空间
+
+项目现在使用 Nx 作为 monorepo 管理工具，提供以下功能：
+
+```bash
+# 查看所有项目
+nx show projects
+
+# 查看项目依赖图
+nx graph
+
+# 批量运行任务
+nx run-many --target=build --all
+
+# 只运行受影响的项目
+nx affected --target=test
+```
+
+## 2. 构建核心包
+
+在对 `@yai-nexus/fekit` 包进行任何代码更改后，都需要重新构建它。
+
+### 推荐方式：使用 Nx 命令
+
+```bash
+# 构建单个包
+nx build @yai-nexus/fekit
+
+# 构建所有包
+nx run-many --target=build --all
+```
+
+### 传统方式：使用 pnpm
+
+```bash
+# 从项目根目录运行
+pnpm --filter @yai-nexus/fekit build
+```
+
+该包的 `tsup.config.ts` 和 `package.json` 已被配置为构建分离的客户端和服务器端文件。
+
+## 3. 运行 Next.js 示例应用
+
+从项目根目录运行以下命令：
+
+### 推荐方式：使用 Nx 命令
+
+```bash
+nx serve nextjs-app
+```
+
+### 传统方式：使用 pnpm
+
+```bash
+pnpm --filter nextjs-app dev
+```
+
+> **注意**: `nextjs-app` 的 `package.json` 中的 `dev` 脚本应为 `"next dev"`，不包含 `--turbopack` 参数，以确保与我们的 Webpack 配置兼容。
+
+服务器将启动在 `http://localhost:3000` (或可用的下一个端口)。请你看一看控制台的输出，检查是否存在异常。在没有异常的前提下，再进行下一步
+
+## 4. 运行 Python 后端
+
+在单独的终端中，启动 Python 后端服务。
+
+### 推荐方式：使用 Nx 命令
+
+```bash
+# 从项目根目录运行（推荐）
+nx serve python-backend
+```
+
+### 传统方式：手动运行
+
+```bash
+# 确保已安装所有 Python 依赖（在根目录运行一次即可）
+uv venv .venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+
+# 启动服务 (默认运行在 http://localhost:8000)
+cd examples/python-backend
+python main.py
+```
+
+至此，前端和后端服务都已成功运行。请你看一看控制台的输出，检查是否存在异常。在没有异常的前提下，再进行下一步。您可以在浏览器中访问 Next.js 应用并与 AI 助手进行交互。
+
