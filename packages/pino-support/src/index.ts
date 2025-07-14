@@ -2,47 +2,48 @@
  * Simplified pino-support - using community components
  */
 
-import pino from 'pino';
-import { LoggerConfig } from './types';
-import { detectEnvironment, supportsFileOperations } from './environment';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import pino from "pino";
+import { detectEnvironment, supportsFileOperations } from "./environment";
+import { LoggerConfig } from "./types";
 
 /**
  * Create a simplified pino logger
  */
-export function createLogger(config: LoggerConfig): pino.Logger {
+export async function createLogger(config: LoggerConfig): Promise<pino.Logger> {
   const env = detectEnvironment();
-  
+
   // Validate service name
   if (!config.serviceName) {
-    throw new Error('serviceName is required');
+    throw new Error("serviceName is required");
   }
-  
+
   // Build pino options
   const pinoOptions: pino.LoggerOptions = {
-    level: config.level || 'info',
+    level: config.level || "info",
     base: {
       service: config.serviceName,
-      environment: env.environment
-    }
+      environment: env.environment,
+    },
   };
 
   // Build streams
   const streams: any[] = [];
-  
+
   // Console stream
   if (config.console?.enabled !== false) {
     if (env.isBrowser) {
       // Browser: use console
-      streams.push({ 
-        stream: { write: (msg: string) => console.log(msg) }
+      streams.push({
+        stream: { write: (msg: string) => console.log(msg) },
       });
     } else {
       // Node.js: use stdout with optional pretty printing
-      if (config.console?.pretty && process.env.NODE_ENV !== 'production') {
+      if (config.console?.pretty && process.env.NODE_ENV !== "production") {
         try {
-          const pretty = require('pino-pretty');
+          const { default: pretty } = await import("pino-pretty");
           streams.push({ stream: pretty() });
         } catch {
           streams.push({ stream: process.stdout });
@@ -52,7 +53,7 @@ export function createLogger(config: LoggerConfig): pino.Logger {
       }
     }
   }
-  
+
   // File stream (Node.js only) - simplified file output
   if (config.file?.enabled && supportsFileOperations()) {
     const filePath = config.file.path || `logs/${config.serviceName}.log`;
@@ -60,39 +61,28 @@ export function createLogger(config: LoggerConfig): pino.Logger {
       // Ensure directory exists
       const dir = path.dirname(filePath);
       fs.mkdirSync(dir, { recursive: true });
-      
+
       // Create file stream
-      const fileStream = fs.createWriteStream(filePath, { flags: 'a' });
-      
+      const fileStream = fs.createWriteStream(filePath, { flags: "a" });
+
       // Apply pretty formatting if requested
       if (config.file.pretty) {
         try {
-          const pretty = require('pino-pretty');
+          const { default: pretty } = await import("pino-pretty");
           // Create a transform stream that will format the output
           const prettyTransform = pretty({
             colorize: false,
-            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
-            ignore: 'pid,hostname',
-            sync: true
+            translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
+            ignore: "pid,hostname",
+            sync: true,
           });
-          
-          // Create a custom stream that pipes through pretty formatter
-          streams.push({
-            stream: {
-              write: (chunk: any) => {
-                try {
-                  const formatted = prettyTransform(JSON.parse(chunk));
-                  fileStream.write(formatted + '\n');
-                } catch (err) {
-                  // Fallback to raw JSON if formatting fails
-                  fileStream.write(chunk);
-                }
-              }
-            }
-          });
+
+          // Pipe the pretty transform to the file stream
+          prettyTransform.pipe(fileStream);
+          streams.push({ stream: prettyTransform });
         } catch (error) {
           // Fallback to JSON format if pino-pretty fails
-          console.warn('pino-pretty error for file output:', error);
+          console.warn("pino-pretty error for file output:", error);
           streams.push({ stream: fileStream });
         }
       } else {
@@ -100,10 +90,10 @@ export function createLogger(config: LoggerConfig): pino.Logger {
         streams.push({ stream: fileStream });
       }
     } catch (error: any) {
-      console.warn('File logging failed:', error?.message || 'Unknown error');
+      console.warn("File logging failed:", error?.message || "Unknown error");
     }
   }
-  
+
   // Return logger
   if (streams.length === 0) {
     return pino(pinoOptions);
@@ -115,45 +105,53 @@ export function createLogger(config: LoggerConfig): pino.Logger {
 /**
  * Convenience functions
  */
-export function createDevLogger(serviceName: string): pino.Logger {
+export async function createDevLogger(
+  serviceName: string
+): Promise<pino.Logger> {
   return createLogger({
     serviceName,
-    level: 'debug',
+    level: "debug",
     console: { enabled: true, pretty: true },
-    file: { enabled: true, pretty: true }
+    file: { enabled: true, pretty: true },
   });
 }
 
-export function createProdLogger(serviceName: string): pino.Logger {
+export async function createProdLogger(
+  serviceName: string
+): Promise<pino.Logger> {
   return createLogger({
     serviceName,
-    level: 'info',
+    level: "info",
     console: { enabled: true, pretty: false },
-    file: { enabled: true, pretty: false }
+    file: { enabled: true, pretty: false },
   });
 }
 
-export function createConsoleLogger(serviceName: string): pino.Logger {
+export async function createConsoleLogger(
+  serviceName: string
+): Promise<pino.Logger> {
   return createLogger({
     serviceName,
-    level: 'info',
+    level: "info",
     console: { enabled: true, pretty: false },
-    file: { enabled: false }
+    file: { enabled: false },
   });
 }
 
 // Re-export environment detection
-export { detectEnvironment, supportsFileOperations } from './environment';
+export { detectEnvironment, supportsFileOperations } from "./environment";
 
 // Re-export types
-export * from './types';
+export * from "./types";
 
 // Metadata function
-export function getLoggerMetadata(logger: pino.Logger): Record<string, unknown> {
+export function getLoggerMetadata(
+  _logger: pino.Logger
+): Record<string, unknown> {
   return {
-    version: require('../package.json').version || 'unknown',
+    version: "0.2.6", // Static version to avoid require()
     pid: process.pid,
-    hostname: require('os').hostname(),
-    timestamp: new Date().toISOString()
+    hostname: os.hostname(),
+    timestamp: new Date().toISOString(),
   };
 }

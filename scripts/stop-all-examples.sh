@@ -27,6 +27,7 @@ pkill -f "nx serve" 2>/dev/null && echo "  ✅ 停止 Nx 服务" || echo "  ℹ�
 
 # 停止可能的端口占用进程
 lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 释放端口 3000" || echo "  ℹ️  端口 3000 未占用"
+lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 释放端口 8000" || echo "  ℹ️  端口 8000 未占用"
 
 # 等待进程完全停止
 sleep 2

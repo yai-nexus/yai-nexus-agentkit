@@ -1,8 +1,8 @@
 "use client";
 
-import { CopilotKit } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { YaiNexusPersistenceProvider } from "@yai-nexus/fekit/client";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export default function Home() {
   const userId = "demo_user_12345";
@@ -11,13 +11,16 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            YAI Nexus FeKit Demo
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300 mt-2">
-            Demonstrating CopilotKit integration with yai-nexus-agentkit Python backend
-          </p>
+        <div className="max-w-4xl mx-auto px-4 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              YAI Nexus FeKit Demo
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300 mt-2">
+              Demonstrating CopilotKit integration with yai-nexus-agentkit Python backend
+            </p>
+          </div>
+          <ThemeToggle />
         </div>
       </header>
 
@@ -33,19 +36,17 @@ export default function Home() {
           </div>
           
           <div className="flex-1 overflow-hidden">
-            <CopilotKit runtimeUrl="/api/copilotkit">
-              <YaiNexusPersistenceProvider
-                userId={userId}
-                conversationId={conversationId}
-              >
-                <CopilotChat 
-                  labels={{
-                    title: "YAI Nexus Assistant",
-                    initial: "Hello! I'm your AI assistant. How can I help you today?",
-                  }}
-                />
-              </YaiNexusPersistenceProvider>
-            </CopilotKit>
+            <YaiNexusPersistenceProvider
+              userId={userId}
+              conversationId={conversationId}
+            >
+              <CopilotChat 
+                labels={{
+                  title: "YAI Nexus Assistant",
+                  initial: "Hello! I'm your AI assistant. How can I help you today?",
+                }}
+              />
+            </YaiNexusPersistenceProvider>
           </div>
         </div>
 
