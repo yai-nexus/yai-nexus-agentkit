@@ -8,35 +8,36 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from typing import AsyncGenerator, Union, Dict, Optional
+from typing import AsyncGenerator, Dict, Optional, Union
 
+# 核心依赖 - 直接导入
+from ag_ui.core.events import (
+    BaseEvent,
+    CustomEvent,
+    EventType,
+    RunErrorEvent,
+    RunFinishedEvent,
+    RunStartedEvent,
+    StepFinishedEvent,
+    StepStartedEvent,
+    TextMessageChunkEvent,
+    ThinkingTextMessageEndEvent,
+    ThinkingTextMessageStartEvent,
+    ToolCallArgsEvent,
+    ToolCallEndEvent,
+    ToolCallResultEvent,
+    ToolCallStartEvent,
+)
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.runnables import Runnable
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
-# 核心依赖 - 直接导入
-from ag_ui.core.events import (
-    TextMessageChunkEvent,
-    RunStartedEvent,
-    RunFinishedEvent,
-    RunErrorEvent,
-    ToolCallStartEvent,
-    ToolCallArgsEvent,
-    ToolCallEndEvent,
-    ToolCallResultEvent,
-    ThinkingStartEvent,
-    ThinkingEndEvent,
-    CustomEvent,
-    StepStartedEvent,
-    StepFinishedEvent,
-    EventType,
-)
+from ..core.events import _INTERNAL_EVENT_MARKER
+from .errors import EventTranslationError
 
 # 导入新的强类型事件枚举和异常
 from .langgraph_events import LangGraphEventType
-from .errors import EventTranslationError
-from ..core.events import _INTERNAL_EVENT_MARKER
 
 # 设置日志
 logger = logging.getLogger(__name__)
@@ -147,9 +148,79 @@ class AGUIAdapter:
             run_error = RunErrorEvent(type=EventType.RUN_ERROR, message=str(e))
             yield json.dumps(run_error.model_dump())
 
+    async def event_object_stream_adapter(
+        self, task: Task
+    ) -> AsyncGenerator[BaseEvent, None]:
+        """
+        事件对象流适配器
+        将 langgraph Agent 事件流转换为 AG-UI Pydantic 对象
+
+        Args:
+            task: AG-UI 任务对象
+
+        Yields:
+            AG-UI 事件 Pydantic 对象
+        """
+        # 初始化工具调用跟踪器
+        tool_tracker = ToolCallTracker()
+
+        try:
+            # 步骤 1: 正确处理thread_id和run_id的关系
+            # 如果客户端提供了thread_id，使用它；否则创建新的对话线程
+            effective_thread_id = task.thread_id if task.thread_id else task.id
+
+            # 步骤 2: 产生 AG-UI 的 "开始" 事件
+            run_started = RunStartedEvent(
+                type=EventType.RUN_STARTED,
+                thread_id=effective_thread_id,  # 正确的对话线程ID
+                run_id=task.id,  # 每次运行的唯一标识
+            )
+            yield run_started
+
+            # 通过 isinstance 判断 agent 是否为 langgraph agent
+            if isinstance(self.agent, CompiledStateGraph):
+                # 步骤 2: 调用 langgraph Agent 的流式事件接口
+                async for event in self.agent.astream_events(
+                    {"messages": [("user", task.query)]}, version="v1"
+                ):
+                    # 使用强类型枚举处理事件
+                    try:
+                        async for ag_ui_event in self._translate_event(
+                            event, tool_tracker
+                        ):
+                            yield ag_ui_event
+                    except EventTranslationError as e:
+                        logger.warning(f"Failed to translate event: {e}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Unexpected error translating event: {e}")
+                        continue
+            else:
+                # 如果没有 astream_events，则作为普通 LLM 客户端处理
+                async for event_json in self._simple_llm_stream(task):
+                    # 解析 JSON 字符串为对象，然后转换为 Pydantic 对象
+                    event_dict = json.loads(event_json)
+                    # 这里需要根据 event_dict 的 type 创建相应的 Pydantic 对象
+                    # 简化处理，直接 yield 字典（需要进一步完善）
+                    yield event_dict
+
+            # 步骤 4: 产生 AG-UI 的 "完成" 事件
+            run_finished = RunFinishedEvent(
+                type=EventType.RUN_FINISHED,
+                thread_id=effective_thread_id,  # 使用相同的线程ID
+                run_id=task.id,  # 使用正确的运行ID
+            )
+            yield run_finished
+
+        except Exception as e:
+            logger.error(f"AGUIAdapter error: {e}")
+            # 步骤 5: 错误处理
+            run_error = RunErrorEvent(type=EventType.RUN_ERROR, message=str(e))
+            yield run_error
+
     async def _translate_event(
         self, event: dict, tool_tracker: ToolCallTracker
-    ) -> AsyncGenerator[object, None]:
+    ) -> AsyncGenerator[BaseEvent, None]:
         """
         将单个langgraph事件翻译为AG-UI事件
 
@@ -242,11 +313,13 @@ class AGUIAdapter:
         elif kind is LangGraphEventType.ON_CHAIN_START:
             # name字段在事件的顶层，不在data中
             chain_name = event.get("name", "Unknown")
-            yield ThinkingStartEvent(type=EventType.THINKING_START, title=chain_name)
+            yield ThinkingTextMessageStartEvent(
+                type=EventType.THINKING_TEXT_MESSAGE_START
+            )
 
         # 思考结束事件
         elif kind is LangGraphEventType.ON_CHAIN_END:
-            yield ThinkingEndEvent(type=EventType.THINKING_END)
+            yield ThinkingTextMessageEndEvent(type=EventType.THINKING_TEXT_MESSAGE_END)
 
         # 步骤开始事件
         elif kind is LangGraphEventType.ON_NODE_START:

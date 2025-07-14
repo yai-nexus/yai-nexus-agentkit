@@ -9,16 +9,18 @@ from typing import Annotated, Any, Dict, List, TypedDict
 
 # 核心依赖
 from ag_ui.core import RunAgentInput
+from ag_ui.core.events import RunErrorEvent
+from ag_ui.encoder import EventEncoder
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from langchain_core.messages import BaseMessage
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from loguru import logger
 from pydantic import BaseModel
-from sse_starlette.sse import EventSourceResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from yai_loguru_support import setup_dev_logging, setup_logging, setup_prod_logging
 from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, Task
@@ -351,7 +353,7 @@ async def invoke_agent(request_data: RunAgentInput, request: Request):
 @app.post("/agui")
 async def agui_agent(request_data: RunAgentInput, request: Request):
     """
-    为 HttpAgent 提供的 AG-UI 流式端点，返回 SSE 流，每个事件是 AG-UI JSON 对象
+    为 HttpAgent 提供的 AG-UI 流式端点，使用官方 EventEncoder 确保格式兼容性
     """
     req_logger = request.state.logger.bind(
         run_id=request_data.run_id, thread_id=request_data.thread_id, endpoint="/agui"
@@ -385,34 +387,35 @@ async def agui_agent(request_data: RunAgentInput, request: Request):
             "Processing AG-UI streaming task", task_id=task.id, thread_id=task.thread_id
         )
 
-        # 创建正确的 SSE 流：每个事件的 data 是 AG-UI JSON 对象
-        async def agui_sse_stream():
-            import json
+        # 获取 accept header 用于 EventEncoder
+        accept_header = request.headers.get("accept")
+        req_logger.info("Request accept header", accept_header=accept_header)
 
+        # 创建 AG-UI 官方的事件编码器
+        encoder = EventEncoder(accept=accept_header)
+
+        # 使用官方 EventEncoder 的 SSE 流
+        async def agui_sse_stream():
             event_count = 0
             try:
-                async for event_json in agui_adapter.event_stream_adapter(task):
+                # 使用新的 event_object_stream_adapter 方法，直接获取 Pydantic 对象
+                async for event_obj in agui_adapter.event_object_stream_adapter(task):
                     event_count += 1
-                    # 解析 JSON 字符串为对象，然后重新序列化为 SSE 格式
-                    event_obj = json.loads(event_json)
-                    # SSE 格式：data: {AG-UI JSON 对象}
-                    yield f"data: {json.dumps(event_obj)}\n\n"
+
+                    # 使用官方编码器编码事件，自动处理格式兼容性
+                    yield encoder.encode(event_obj)
 
                 req_logger.info("AG-UI streaming completed", event_count=event_count)
             except Exception as e:
                 req_logger.error("Error in AG-UI streaming", error=str(e))
-                # 发送错误事件
-                error_event = {
-                    "type": "RUN_ERROR",
-                    "message": str(e),
-                    "timestamp": None,
-                    "raw_event": None,
-                }
-                yield f"data: {json.dumps(error_event)}\n\n"
+                # 发送错误事件，使用官方编码器和正确的事件类型
+                error_event = RunErrorEvent(type="RUN_ERROR", message=str(e))
+                yield encoder.encode(error_event)
 
-        # 返回 SSE 流
-        return EventSourceResponse(
-            agui_sse_stream(), ping=15, media_type="text/event-stream"
+        # 返回 SSE 流，使用编码器提供的正确 content type
+        # 注意：不使用 EventSourceResponse，因为 EventEncoder 已经处理了 SSE 格式
+        return StreamingResponse(
+            agui_sse_stream(), media_type=encoder.get_content_type()
         )
 
     except HTTPException as http_exc:
