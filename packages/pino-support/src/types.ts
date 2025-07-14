@@ -12,6 +12,7 @@ export interface LoggerConfig {
   file?: {
     enabled?: boolean;
     path?: string; // simplified: just a file path
+    pretty?: boolean; // enable pretty formatting for file output
   };
 }
 

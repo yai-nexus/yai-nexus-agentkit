@@ -32,7 +32,7 @@ async function main(): Promise<void> {
       serviceName: 'sls-pino-example',
       level: 'debug',
       console: { enabled: true, pretty: true },
-      file: { enabled: true, path: logPath }
+      file: { enabled: true, path: logPath, pretty: true }
     });
 
     logger.info('服务启动', { service: 'sls-pino-example', version: '0.1.0' });

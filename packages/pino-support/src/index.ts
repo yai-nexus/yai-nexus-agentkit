@@ -61,9 +61,44 @@ export function createLogger(config: LoggerConfig): pino.Logger {
       const dir = path.dirname(filePath);
       fs.mkdirSync(dir, { recursive: true });
       
-      // Create append stream
+      // Create file stream
       const fileStream = fs.createWriteStream(filePath, { flags: 'a' });
-      streams.push({ stream: fileStream });
+      
+      // Apply pretty formatting if requested
+      if (config.file.pretty) {
+        try {
+          const pretty = require('pino-pretty');
+          // Create a transform stream that will format the output
+          const prettyTransform = pretty({
+            colorize: false,
+            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss',
+            ignore: 'pid,hostname',
+            sync: true
+          });
+          
+          // Create a custom stream that pipes through pretty formatter
+          streams.push({
+            stream: {
+              write: (chunk: any) => {
+                try {
+                  const formatted = prettyTransform(JSON.parse(chunk));
+                  fileStream.write(formatted + '\n');
+                } catch (err) {
+                  // Fallback to raw JSON if formatting fails
+                  fileStream.write(chunk);
+                }
+              }
+            }
+          });
+        } catch (error) {
+          // Fallback to JSON format if pino-pretty fails
+          console.warn('pino-pretty error for file output:', error);
+          streams.push({ stream: fileStream });
+        }
+      } else {
+        // Default JSON format
+        streams.push({ stream: fileStream });
+      }
     } catch (error: any) {
       console.warn('File logging failed:', error?.message || 'Unknown error');
     }
@@ -85,7 +120,7 @@ export function createDevLogger(serviceName: string): pino.Logger {
     serviceName,
     level: 'debug',
     console: { enabled: true, pretty: true },
-    file: { enabled: true }
+    file: { enabled: true, pretty: true }
   });
 }
 
@@ -94,7 +129,7 @@ export function createProdLogger(serviceName: string): pino.Logger {
     serviceName,
     level: 'info',
     console: { enabled: true, pretty: false },
-    file: { enabled: true }
+    file: { enabled: true, pretty: false }
   });
 }
 

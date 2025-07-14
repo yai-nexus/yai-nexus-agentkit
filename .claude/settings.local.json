@@ -64,7 +64,12 @@
       "Bash(npx nx show:*)",
       "Bash(npx nx graph:*)",
       "Bash(npx nx run-many:*)",
-      "Bash(npx nx lint:*)"
+      "Bash(npx nx lint:*)",
+      "Bash(kill:*)",
+      "Bash(npm test)",
+      "Bash(npm test:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/start-all-examples.sh:*)"
     ],
     "deny": []
   }

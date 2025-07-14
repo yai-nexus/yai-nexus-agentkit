@@ -17,7 +17,7 @@
         "name": "Next.js: debug full stack",
         "type": "node",
         "request": "launch",
-        "program": "${workspaceFolder}/examples/nextjs-app/node_modules/next/dist/bin/next",
+        "program": "${workspaceFolder}/node_modules/next/dist/bin/next",
         "runtimeArgs": ["--inspect"],
         "skipFiles": ["<node_internals>/**"],
         "serverReadyAction": {
@@ -25,7 +25,7 @@
           "killOnServerStop": true,
           "pattern": "- Local:.+(https?://.+)",
           "uriFormat": "%s",
-          "webRoot": "${workspaceFolder}/examples/nextjs-app"
+          "webRoot": "${workspaceFolder}"
         }
       }
     ]
