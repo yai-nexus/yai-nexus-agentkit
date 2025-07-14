@@ -26,9 +26,22 @@ mkdir -p logs
 
 # 停止可能已经运行的进程
 echo -e "${YELLOW}📋 停止现有进程...${NC}"
-pkill -f "dev:example" 2>/dev/null || true
-pkill -f "nx serve" 2>/dev/null || true
-sleep 2
+
+# 停止 pnpm 相关的开发进程
+pkill -f "dev:example:next" 2>/dev/null && echo "  ✅ 停止现有 Next.js 应用" || echo "  ℹ️  Next.js 应用未运行"
+pkill -f "dev:example:python" 2>/dev/null && echo "  ✅ 停止现有 Python 后端" || echo "  ℹ️  Python 后端未运行"
+pkill -f "dev:example:sls-loguru" 2>/dev/null && echo "  ✅ 停止现有 SLS Loguru" || echo "  ℹ️  SLS Loguru 未运行"
+pkill -f "dev:example:sls-pino" 2>/dev/null && echo "  ✅ 停止现有 SLS Pino" || echo "  ℹ️  SLS Pino 未运行"
+
+# 停止 nx serve 进程
+pkill -f "nx serve" 2>/dev/null && echo "  ✅ 停止现有 Nx 服务" || echo "  ℹ️  Nx 服务未运行"
+
+# 释放可能被占用的端口
+lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 释放端口 3000" || echo "  ℹ️  端口 3000 未占用"
+lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 释放端口 8000" || echo "  ℹ️  端口 8000 未占用"
+
+# 等待进程完全停止
+sleep 3
 
 # 启动所有示例
 echo -e "${GREEN}🔥 启动示例应用...${NC}"

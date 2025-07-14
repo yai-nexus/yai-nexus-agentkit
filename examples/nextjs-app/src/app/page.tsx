@@ -70,7 +70,7 @@ export default function Home() {
             </h3>
             <div className="text-sm text-gray-600 dark:text-gray-300">
               <p>Backend URL: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                {process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000/invoke"}
+                {process.env.NEXT_PUBLIC_PYTHON_BACKEND_URL || "http://127.0.0.1:8000"}
               </code></p>
               <p className="mt-1">Make sure your Python backend is running to test the integration.</p>
             </div>
