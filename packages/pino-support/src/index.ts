@@ -107,5 +107,18 @@ export function createConsoleLogger(serviceName: string): pino.Logger {
   });
 }
 
+// Re-export environment detection
+export { detectEnvironment, supportsFileOperations } from './environment';
+
 // Re-export types
 export * from './types';
+
+// Metadata function
+export function getLoggerMetadata(logger: pino.Logger): Record<string, unknown> {
+  return {
+    version: require('../package.json').version || 'unknown',
+    pid: process.pid,
+    hostname: require('os').hostname(),
+    timestamp: new Date().toISOString()
+  };
+}

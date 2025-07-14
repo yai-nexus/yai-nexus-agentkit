@@ -6,7 +6,7 @@
   "scripts": {
     "dev:sdk": "pnpm --filter agentkit dev",
     "build:sdk": "pnpm --filter agentkit build",
-    "dev:example:next": "pnpm --filter nextjs-app dev",
+    "dev:example:next": "NODE_OPTIONS='--inspect' pnpm --filter nextjs-app dev",
     "dev:example:python": "cd examples/python-backend && source ../../.venv/bin/activate && python main.py",
     "dev:example:sls-loguru": "cd examples/sls-loguru-example && source ../../.venv/bin/activate && python main.py",
     "dev:example:sls-pino": "pnpm --filter sls-pino-example dev",
@@ -22,7 +22,9 @@
     "logs:cleanup:all:dry": "node scripts/cleanup-logs.js --retention-days 0 --dry-run --verbose",
     "logs:stats": "node scripts/cleanup-logs.js --stats",
     "logs:cleanup:14d": "node scripts/cleanup-logs.js --retention-days 14 --verbose",
-    "logs:cleanup:1gb": "node scripts/cleanup-logs.js --max-size 1GB --verbose"
+    "logs:cleanup:1gb": "node scripts/cleanup-logs.js --max-size 1GB --verbose",
+    "clean:node_modules": "find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
+    "clean:node_modules:dry": "find . -name 'node_modules' -type d -prune -print"
   },
   "workspaces": [
     "packages/*",

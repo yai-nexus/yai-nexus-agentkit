@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@yai-nexus/fekit"],
+  transpilePackages: ["@yai-nexus/fekit", "@yai-nexus/pino-support"],
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Provide fallbacks for Node.js modules when bundling for the browser

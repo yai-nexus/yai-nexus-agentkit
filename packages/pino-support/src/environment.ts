@@ -8,7 +8,7 @@ import { EnvironmentInfo } from './types';
  * Detect current runtime environment
  */
 export function detectEnvironment(): EnvironmentInfo {
-  const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+  const isBrowser = typeof globalThis !== 'undefined' && typeof (globalThis as any).window !== 'undefined' && typeof (globalThis as any).window.document !== 'undefined';
   const isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
   
   return {
