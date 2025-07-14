@@ -5,14 +5,15 @@ AGUIAdapter集成测试
 """
 
 import json
-import pytest
 from typing import Annotated, Dict, List
 
-from langchain_core.messages import HumanMessage, AIMessage
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
-from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.graph import END, START, MessagesState, StateGraph
 
-from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, Task
+from yai_nexus_agentkit.adapter.agui_adapter import AGUIAdapter
+from yai_nexus_agentkit.adapter.models import Task
 
 
 # 定义AgentState
@@ -226,8 +227,8 @@ class TestAGUIAdapterIntegration:
 
         # 收集所有事件
         events = []
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
 
         # 验证事件序列的基本结构
@@ -305,8 +306,8 @@ class TestAGUIAdapterIntegration:
 
         # 收集所有事件
         events = []
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
 
         # 验证基本事件结构
@@ -364,8 +365,8 @@ class TestAGUIAdapterIntegration:
 
         # 收集所有事件
         events = []
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
 
         # 验证基本事件结构
@@ -393,8 +394,8 @@ class TestAGUIAdapterIntegration:
         events = []
         event_timestamps = []
 
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
             # 记录时间戳（如果可用）
             event_timestamps.append(event_data.get("timestamp"))
@@ -493,8 +494,8 @@ class TestAGUIAdapterIntegration:
 
         # 收集所有事件
         events = []
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
 
         # 验证错误处理

@@ -34,6 +34,9 @@ uv venv .venv
 source .venv/bin/activate  # Linux/Mac
 # One-command install for all Python packages and examples (10-100x faster)
 uv pip install -r requirements.txt
+
+# Install additional test dependencies
+uv pip install pytest-asyncio
 ```
 
 ### Development Workflows
@@ -55,10 +58,30 @@ cd examples/sls-loguru-example && python main.py
 
 ### Testing
 ```bash
-# Python tests
+# Python tests - install async test dependency first
 cd packages/agentkit
+source ../../.venv/bin/activate
+uv pip install pytest-asyncio
+
+# Run all tests
 pytest                          # Run all tests
 pytest --cov                    # Run with coverage
+pytest --cov-report=html        # Generate HTML coverage report
+
+# Run specific test files
+pytest tests/unit/test_agui_adapter.py -v
+pytest tests/integration/test_adapter_integration.py -v
+
+# Run test patterns
+pytest -k "tool_call" -v        # Run tests matching pattern
+pytest -k "not integration" -v  # Exclude integration tests
+
+# Run specific test methods/classes
+pytest tests/unit/test_agui_adapter.py::TestToolCallTracker::test_start_call -v
+pytest tests/unit/test_agui_adapter.py::TestToolCallTracker -v
+
+# Async test support
+pytest --asyncio-mode=auto      # Enable async mode
 
 # Python code quality
 black .                         # Format code
@@ -116,7 +139,13 @@ SLS_LOGSTORE=your_logstore_name
 ### Adapter System  
 - Event-driven streaming with SSE and AG-UI protocols
 - Located in `packages/agentkit/src/yai_nexus_agentkit/adapter/`
-- Supports both basic SSE and advanced AG-UI streaming
+- **Key Components**:
+  - `event_translator.py` - Abstract base class for event translation
+  - `sse_advanced.py` - AGUIAdapter with full AG-UI protocol support
+  - `langgraph_events.py` - LangGraph event type definitions  
+  - `errors.py` - Adapter-specific error handling
+- **Event Flow**: LangGraph events → EventTranslator → AG-UI events → SSE stream
+- **Tool Call Tracking**: Maintains state across tool start/args/end/result events
 
 ### Persistence Architecture
 - Tortoise ORM with PostgreSQL backend
@@ -304,6 +333,36 @@ uv pip uninstall package            # Uninstall package
 
 ## Virtual Environment Convention
 Always use `.venv` as the Python virtual environment directory name for all Python projects in this monorepo.
+
+## Debugging and Troubleshooting
+
+### Common Issues
+```bash
+# Test failures due to missing dependencies
+cd packages/agentkit
+source ../../.venv/bin/activate
+uv pip install pytest-asyncio
+
+# Test failures due to import issues 
+# Check that imports match the current adapter structure:
+# - Use `from yai_nexus_agentkit.adapter.agui_adapter import AGUIAdapter`
+# - Use `from yai_nexus_agentkit.adapter.models import Task`
+# - Use `from yai_nexus_agentkit.adapter.tool_call_tracker import ToolCallTracker`
+
+# Check adapter module structure
+ls packages/agentkit/src/yai_nexus_agentkit/adapter/
+
+# Verify database migrations (if using persistence)
+cd packages/agentkit
+aerich init -t yai_nexus_agentkit.persistence.db_config.TORTOISE_ORM
+aerich init-db
+```
+
+### Development Tips
+- **Event Translation**: The adapter system translates LangGraph events to AG-UI events in real-time
+- **Tool Call State**: Tool calls must maintain consistent UUIDs across start/args/end/result events  
+- **Async Testing**: Always use `@pytest.mark.asyncio` for async test methods
+- **Mock Agents**: Use `CompiledStateGraph` mock with `astream_events()` for integration tests
 
 ## Future Improvements
 

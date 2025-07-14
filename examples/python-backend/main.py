@@ -23,7 +23,8 @@ from loguru import logger
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from yai_loguru_support import setup_dev_logging, setup_logging, setup_prod_logging
-from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, Task
+from yai_nexus_agentkit.adapter.agui_adapter import AGUIAdapter
+from yai_nexus_agentkit.adapter.models import Task
 
 # 加载环境变量
 load_dotenv()
@@ -398,8 +399,8 @@ async def agui_agent(request_data: RunAgentInput, request: Request):
         async def agui_sse_stream():
             event_count = 0
             try:
-                # 使用新的 event_object_stream_adapter 方法，直接获取 Pydantic 对象
-                async for event_obj in agui_adapter.event_object_stream_adapter(task):
+                # 使用新的 stream_events 方法，直接获取 Pydantic 对象
+                async for event_obj in agui_adapter.stream_events(task):
                     event_count += 1
 
                     # 使用官方编码器编码事件，自动处理格式兼容性

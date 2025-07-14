@@ -4,20 +4,24 @@ AGUIAdapter单元测试
 测试事件翻译逻辑的正确性
 """
 
-import pytest
 import json
 from unittest.mock import Mock
-from yai_nexus_agentkit.adapter.sse_advanced import AGUIAdapter, ToolCallTracker, Task
+
+import pytest
 from ag_ui.core.events import (
-    ToolCallStartEvent,
+    CustomEvent,
+    TextMessageChunkEvent,
+    ThinkingEndEvent,
+    ThinkingStartEvent,
     ToolCallArgsEvent,
     ToolCallEndEvent,
     ToolCallResultEvent,
-    ThinkingStartEvent,
-    ThinkingEndEvent,
-    TextMessageChunkEvent,
-    CustomEvent,
+    ToolCallStartEvent,
 )
+
+from yai_nexus_agentkit.adapter.agui_adapter import AGUIAdapter
+from yai_nexus_agentkit.adapter.models import Task
+from yai_nexus_agentkit.adapter.tool_call_tracker import ToolCallTracker
 
 
 class TestToolCallTracker:
@@ -260,8 +264,8 @@ class TestAGUIAdapterIntegration:
 
         # 收集所有产生的事件
         events = []
-        async for event_json in adapter.event_stream_adapter(task):
-            event_data = json.loads(event_json)
+        async for event_obj in adapter.stream_events(task):
+            event_data = event_obj.model_dump()
             events.append(event_data)
 
         # 验证事件序列
