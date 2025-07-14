@@ -296,55 +296,22 @@ class AliyunSlsSink(BaseSink):
             self._internal_logger.warning(f"SLS health check failed: {e}")
             return False
             
-    async def async_start(self) -> None:
+    # Override base class methods if needed
+    async def _astart(self) -> None:
         """
-        Start the sink asynchronously.
+        SLS-specific async start implementation.
         
-        This method should be called explicitly to start the sink.
-        Recommended usage in async environments.
+        Calls parent's _astart() which handles connection initialization.
         """
-        await self.start()
+        await super()._astart()
     
-    async def async_close(self) -> None:
+    async def _astop(self) -> None:
         """
-        Close the sink asynchronously.
+        SLS-specific async stop implementation.
         
-        This method should be called explicitly to close the sink.
-        Recommended usage in async environments.
+        Calls parent's _astop() which handles cleanup.
         """
-        await self.stop()
-    
-    async def __aenter__(self):
-        """
-        Async context manager entry.
-        
-        Automatically starts the sink when entering the context.
-        """
-        await self.async_start()
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """
-        Async context manager exit.
-        
-        Automatically closes the sink when exiting the context.
-        """
-        await self.async_close()
-    
-    def stop(self) -> None:
-        """
-        Synchronous stop method for loguru compatibility.
-        
-        This method is called by loguru when removing the sink.
-        It runs the async close in a way that's compatible with sync contexts.
-        """
-        try:
-            loop = asyncio.get_running_loop()
-            # Create a background task and store reference to prevent GC
-            self._cleanup_task = loop.create_task(self.async_close())
-        except RuntimeError:
-            # No running event loop, create a new one
-            asyncio.run(self.async_close())
+        await super()._astop()
             
     def get_sls_metrics(self) -> Dict[str, Any]:
         """Get SLS-specific metrics."""

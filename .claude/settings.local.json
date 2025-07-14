@@ -70,7 +70,8 @@
       "Bash(npm test:*)",
       "Bash(chmod:*)",
       "Bash(./scripts/start-all-examples.sh:*)",
-      "Bash(./scripts/run-logging-demos.sh:*)"
+      "Bash(./scripts/run-logging-demos.sh:*)",
+      "Bash(xxd:*)"
     ],
     "deny": []
   }

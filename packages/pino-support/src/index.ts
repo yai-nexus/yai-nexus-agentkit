@@ -69,17 +69,17 @@ export async function createLogger(config: LoggerConfig): Promise<pino.Logger> {
       if (config.file.pretty) {
         try {
           const { default: pretty } = await import("pino-pretty");
-          // Create a transform stream that will format the output
-          const prettyTransform = pretty({
-            colorize: false,
-            translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
-            ignore: "pid,hostname",
-            sync: true,
+          
+          // 最简单的方式：直接用 pino-pretty，让它输出到文件
+          streams.push({ 
+            stream: pretty({
+              destination: filePath,
+              colorize: false,
+              translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
+              ignore: "pid,hostname",
+              sync: true,
+            })
           });
-
-          // Pipe the pretty transform to the file stream
-          prettyTransform.pipe(fileStream);
-          streams.push({ stream: prettyTransform });
         } catch (error) {
           // Fallback to JSON format if pino-pretty fails
           console.warn("pino-pretty error for file output:", error);

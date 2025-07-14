@@ -6,7 +6,7 @@ SLS 日志集成简化示例
 
 这个示例展示了：
 1. 从环境变量自动配置 SLS
-2. 使用新的生命周期管理 API (async_start/async_close)
+2. 使用新的生命周期管理 API (astart/astop)
 3. 异步上下文管理器的优雅用法
 4. 发送基本的日志消息
 5. 优雅停机确保日志完整发送
@@ -59,7 +59,7 @@ async def main():
             
             await demo_logging_with_sls(sls_sink)
             
-            # 异步上下文管理器会自动处理 async_close()
+            # 异步上下文管理器会自动处理 astop()
             logger.info("异步上下文管理器示例完成")
         
         # 演示手动生命周期管理方式
@@ -117,14 +117,14 @@ async def demo_manual_lifecycle():
     
     try:
         # 手动启动
-        await sls_sink.async_start()
+        await sls_sink.astart()
         logger.add(sls_sink, serialize=True, level="INFO")
         
         logger.info("手动生命周期管理示例")
         
     finally:
         # 手动关闭
-        await sls_sink.async_close()
+        await sls_sink.astop()
         logger.info("手动关闭完成")
 
 

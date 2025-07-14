@@ -156,8 +156,14 @@ class BaseSink(abc.ABC):
             self._internal_logger.addHandler(handler)
             self._internal_logger.setLevel(logging.INFO)
             
-    async def start(self) -> None:
-        """Start the sink's background processing."""
+    async def _astart(self) -> None:
+        """Core async start implementation (subclasses can override)."""
+        # Initialize the connection
+        await self._initialize_connection()
+        self._internal_logger.info(f"{self.__class__.__name__} started successfully")
+    
+    async def astart(self) -> None:
+        """Async start interface."""
         if self._running:
             return
             
@@ -169,16 +175,27 @@ class BaseSink(abc.ABC):
         
         # Initialize the connection
         try:
-            await self._initialize_connection()
-            self._internal_logger.info(f"{self.__class__.__name__} started successfully")
+            await self._astart()
         except Exception as e:
             self._running = False
             self.metrics.record_connection_error()
             self._internal_logger.error(f"Failed to initialize {self.__class__.__name__}: {e}")
             raise SinkConnectionError(f"Failed to initialize sink: {e}") from e
             
-    async def stop(self) -> None:
-        """Stop the sink and flush remaining logs."""
+    async def _astop(self) -> None:
+        """Core async stop implementation (subclasses can override)."""
+        # Cleanup connection
+        try:
+            await self._cleanup_connection()
+        except Exception as e:
+            self._internal_logger.error(f"Error during cleanup: {e}")
+            
+        # Shutdown executor
+        self._executor.shutdown(wait=True)
+        self._internal_logger.info(f"{self.__class__.__name__} stopped")
+    
+    async def astop(self) -> None:
+        """Async stop interface."""
         if not self._running:
             return
             
@@ -198,14 +215,20 @@ class BaseSink(abc.ABC):
                 pass
                 
         # Cleanup connection
+        await self._astop()
+    
+    def stop(self) -> None:
+        """Sync stop interface for loguru compatibility."""
+        if not self._running:
+            return
+        
         try:
-            await self._cleanup_connection()
-        except Exception as e:
-            self._internal_logger.error(f"Error during cleanup: {e}")
-            
-        # Shutdown executor
-        self._executor.shutdown(wait=True)
-        self._internal_logger.info(f"{self.__class__.__name__} stopped")
+            loop = asyncio.get_running_loop()
+            # Create a background task and don't wait for it
+            loop.create_task(self.astop())
+        except RuntimeError:
+            # No running event loop, create a new one
+            asyncio.run(self.astop())
         
     def write(self, message: str) -> None:
         """
@@ -304,6 +327,16 @@ class BaseSink(abc.ABC):
         })
         return metrics
         
+    # Async context manager support
+    async def __aenter__(self):
+        """Async context manager entry."""
+        await self.astart()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.astop()
+    
     # Abstract methods that must be implemented by subclasses
     
     @abc.abstractmethod
