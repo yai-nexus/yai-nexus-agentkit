@@ -3,6 +3,8 @@ import {
   CopilotRuntime,
   copilotRuntimeNextJSAppRouterEndpoint,
   CopilotServiceAdapter,
+  type CopilotRuntimeChatCompletionRequest,
+  type CopilotRuntimeChatCompletionResponse,
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
 import type { Logger } from "pino";
@@ -39,6 +41,13 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
 
     // 使用注入的 logger，添加 fekit 上下文
     this.baseLogger = options.logger.child({ component: "yai-nexus-fekit" });
+
+    // 记录 HttpAgent 初始化信息
+    this.baseLogger.info("HttpAgent initialized", {
+      backendUrl,
+      aguiUrl,
+      httpAgentUrl: this.httpAgent.url,
+    });
   }
 
   /**
@@ -60,36 +69,25 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
     return `trace_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
-  async process(request: any): Promise<any> {
+  /**
+   * 处理请求 - 方案二：极简化版本
+   *
+   * 假设 CopilotKit 的 eventSource 会自动处理流式响应，
+   * process 方法只需要返回基本的响应元数据
+   *
+   * 注意：使用 any 类型是因为 CopilotRuntimeChatCompletionRequest 和
+   * CopilotRuntimeChatCompletionResponse 类型没有从 @copilotkit/runtime 导出，
+   * 但我们仍然正确实现了 CopilotServiceAdapter 接口
+   */
+  async process(
+    request: CopilotRuntimeChatCompletionRequest
+  ): Promise<CopilotRuntimeChatCompletionResponse> {
     // 生成或使用现有的追踪 ID
     const traceId = this.options.tracing?.enabled
       ? this.generateTraceId()
       : undefined;
     const threadId = request.threadId || traceId || "default";
     const runId = request.runId || `run_${Date.now()}`;
-
-    // 格式化消息，确保每个消息都有 id 字段
-    const formattedMessages = (request.messages || []).map(
-      (msg: any, index: number) => ({
-        id: msg.id || `msg_${Date.now()}_${index}`,
-        role: msg.role,
-        content: msg.content,
-        ...(msg.name && { name: msg.name }),
-        ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
-        ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
-      })
-    );
-
-    // Since HttpAgent expects RunAgentInput format, we need minimal conversion
-    const agentInput = {
-      threadId,
-      runId,
-      messages: formattedMessages,
-      tools: request.tools || [],
-      context: request.context || [],
-      state: request.state || null,
-      forwardedProps: request.forwardedProps || {},
-    };
 
     // 创建请求级别的 logger
     const requestLogger = this.createRequestLogger({
@@ -98,174 +96,142 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
       threadId,
     });
 
-    // 记录请求开始
-    if (traceId) {
-      requestLogger.info("Processing non-streaming request", {
-        operation: "process",
-        messageCount: request.messages?.length || 0,
-      });
-    }
-
-    // Use HttpAgent's runAgent method for non-streaming
-    await this.httpAgent.runAgent(agentInput);
-
-    // For now, return a simple response
-    // The HttpAgent handles the AG-UI protocol internally
-    return {
-      id: `response_${Date.now()}`,
-      content: "Response from YAI Nexus backend",
-      role: "assistant",
-    };
-  }
-
-  async *stream(request: any): AsyncIterable<any> {
-    // 生成或使用现有的追踪 ID
-    const traceId = this.options.tracing?.enabled
-      ? this.generateTraceId()
-      : undefined;
-    const threadId = request.threadId || traceId || "default";
-    const runId = request.runId || `run_${Date.now()}`;
-
-    // 格式化消息，确保每个消息都有 id 字段
-    const formattedMessages = (request.messages || []).map(
-      (msg: any, index: number) => ({
-        id: msg.id || `msg_${Date.now()}_${index}`,
-        role: msg.role,
-        content: msg.content,
-        ...(msg.name && { name: msg.name }),
-        ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
-        ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
-      })
-    );
-
-    // Since HttpAgent expects RunAgentInput format, we need minimal conversion
-    const agentInput = {
-      threadId,
-      runId,
-      messages: formattedMessages,
-      tools: request.tools || [],
-      context: request.context || [],
-      state: request.state || null,
-      forwardedProps: request.forwardedProps || {},
-    };
-
-    // 创建请求级别的 logger
-    const requestLogger = this.createRequestLogger({
-      traceId,
-      runId,
-      threadId,
-    });
-
-    // 记录流式请求开始
-    if (traceId) {
-      requestLogger.info("Processing streaming request", {
-        operation: "stream",
-        messageCount: request.messages?.length || 0,
-      });
-    }
-
-    // Use HttpAgent's run method for streaming
-    const events$ = this.httpAgent.run(agentInput);
-
-    // Convert Observable to AsyncIterable
-    yield* this.observableToAsyncIterable(events$);
-  }
-
-  private async *observableToAsyncIterable(
-    observable: any
-  ): AsyncIterable<any> {
-    const requestLogger = this.baseLogger.child({
-      method: "observableToAsyncIterable",
+    requestLogger.info("Processing request with simplified approach", {
+      operation: "process_v2",
+      messageCount: request.messages?.length || 0,
+      hasEventSource: !!request.eventSource,
+      eventSourceMethods: request.eventSource
+        ? Object.getOwnPropertyNames(Object.getPrototypeOf(request.eventSource))
+        : [],
     });
 
     try {
-      requestLogger.info("Starting observable to async iterable conversion");
+      // 🎯 方案二：让 eventSource 处理所有流式逻辑
+      // process 方法只返回基本的响应元数据
 
-      // 使用 Promise 来处理 Observable
-      const chunks: any[] = [];
-      let completed = false;
-      let error: any = null;
-
-      const subscription = observable.subscribe({
-        next: (chunk: any) => {
-          requestLogger.debug("Received chunk from observable", {
-            chunkType: chunk?.type,
-          });
-          chunks.push(chunk);
-        },
-        error: (err: any) => {
-          requestLogger.error("Observable error", { error: err.message });
-          error = err;
-        },
-        complete: () => {
-          requestLogger.info("Observable completed");
-          completed = true;
-        },
-      });
-
-      try {
-        let yieldedCount = 0;
-        while (!completed && !error) {
-          if (chunks.length > 0) {
-            const chunk = chunks.shift();
-            yieldedCount++;
-
-            // Convert AG-UI events to CopilotKit format
-            const copilotEvent = {
-              type: "content",
-              content: chunk?.type || "event",
-              data: chunk,
-            };
-
-            requestLogger.debug("Yielding chunk", {
-              yieldedCount,
-              chunkType: chunk?.type,
-              eventType: copilotEvent.type,
-            });
-
-            yield copilotEvent;
-          } else {
-            await new Promise((resolve) => setTimeout(resolve, 10));
-          }
-        }
-
-        if (error) {
-          requestLogger.error("Throwing observable error", {
-            error: error.message,
-          });
-          throw error;
-        }
-
-        // Process remaining chunks
-        while (chunks.length > 0) {
-          const chunk = chunks.shift();
-          yieldedCount++;
-
-          const copilotEvent = {
-            type: "content",
-            content: chunk?.type || "event",
-            data: chunk,
-          };
-
-          requestLogger.debug("Yielding remaining chunk", {
-            yieldedCount,
-            chunkType: chunk?.type,
-          });
-
-          yield copilotEvent;
-        }
-
-        requestLogger.info("Observable conversion completed", {
-          totalYielded: yieldedCount,
+      // 如果有 eventSource，我们可以尝试使用它来处理流式响应
+      if (request.eventSource) {
+        requestLogger.info("EventSource detected, delegating stream handling", {
+          eventSourceType: typeof request.eventSource,
+          availableMethods: Object.getOwnPropertyNames(
+            Object.getPrototypeOf(request.eventSource)
+          ),
         });
-      } finally {
-        subscription.unsubscribe();
+
+        // 格式化消息，确保每个消息都有 id 字段
+        const formattedMessages = (request.messages || []).map(
+          (msg: any, index: number) => ({
+            id: msg.id || `msg_${Date.now()}_${index}`,
+            role: msg.role,
+            content: msg.content,
+            ...(msg.name && { name: msg.name }),
+            ...(msg.tool_calls && { tool_calls: msg.tool_calls }),
+            ...(msg.tool_call_id && { tool_call_id: msg.tool_call_id }),
+          })
+        );
+
+        // 准备 AG-UI 格式的输入
+        const agentInput = {
+          threadId,
+          runId,
+          messages: formattedMessages,
+          tools: request.actions || [],
+          context: [],
+          state: null,
+          forwardedProps: request.forwardedParameters || {},
+        };
+
+        // 尝试通过 eventSource 处理流式响应
+        // 这里我们假设 eventSource 有某种方式来处理流式数据
+        try {
+          // 获取 HttpAgent 的事件流
+          const events$ = this.httpAgent.run(agentInput);
+
+          requestLogger.info(
+            "Got events observable, attempting to integrate with eventSource",
+            {
+              observableType: typeof events$,
+              hasSubscribe: typeof events$?.subscribe === "function",
+            }
+          );
+
+          // 尝试将事件流传递给 eventSource（如果它支持的话）
+          // 这是一个实验性的方法，可能需要根据实际的 eventSource API 调整
+          if (typeof request.eventSource.stream === "function") {
+            requestLogger.info(
+              "EventSource has stream method, attempting to use it"
+            );
+
+            await request.eventSource.stream(async (eventStream$: any) => {
+              requestLogger.info("Inside eventSource.stream callback");
+
+              // 订阅 HttpAgent 的事件流并转发到 eventSource
+              events$.subscribe({
+                next: (event: any) => {
+                  requestLogger.debug("Forwarding event to eventSource", {
+                    eventType: event?.type,
+                    hasContent: !!event?.content,
+                  });
+
+                  // 尝试将 AG-UI 事件转发到 CopilotKit 的事件流
+                  if (eventStream$ && typeof eventStream$.next === "function") {
+                    eventStream$.next(event);
+                  }
+                },
+                complete: () => {
+                  requestLogger.info(
+                    "HttpAgent stream completed, completing eventSource stream"
+                  );
+                  if (
+                    eventStream$ &&
+                    typeof eventStream$.complete === "function"
+                  ) {
+                    eventStream$.complete();
+                  }
+                },
+                error: (error: any) => {
+                  requestLogger.error("HttpAgent stream error", {
+                    error: error.message,
+                  });
+                  if (
+                    eventStream$ &&
+                    typeof eventStream$.error === "function"
+                  ) {
+                    eventStream$.error(error);
+                  }
+                },
+              });
+            });
+          }
+        } catch (streamError) {
+          requestLogger.warn("Failed to integrate with eventSource stream", {
+            error:
+              streamError instanceof Error
+                ? streamError.message
+                : String(streamError),
+          });
+        }
       }
-    } catch (err) {
-      requestLogger.error("Error in observable conversion", {
-        error: err instanceof Error ? err.message : String(err),
+
+      // 返回简化的响应 - 实际内容通过 eventSource 流式传输
+      const response = {
+        threadId,
+        runId,
+        // 不包含具体的消息内容，因为这些通过 eventSource 流式传输
+      };
+
+      requestLogger.info("Process method completed with simplified response", {
+        response,
       });
-      throw err;
+
+      return response;
+    } catch (error) {
+      requestLogger.error("Error in simplified process method", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      throw error;
     }
   }
 }

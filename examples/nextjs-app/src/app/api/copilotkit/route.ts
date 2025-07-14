@@ -1,22 +1,22 @@
+import { createApiLogger, generateTraceId } from "@/lib/logger";
 import { createYaiNexusHandler } from "@yai-nexus/fekit/server";
-import { generateTraceId, createApiLogger } from "@/lib/logger";
 
 // 为 CopilotKit API 创建专用的记录器
 const apiLogger = createApiLogger("/api/copilotkit");
 
 // 记录服务启动信息
 apiLogger.info("Initializing CopilotKit handler", {
-  backendUrl: process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000/invoke",
-  environment: process.env.NODE_ENV
+  backendUrl: process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000",
+  environment: process.env.NODE_ENV,
 });
 
 // 使用新的依赖注入 API，直接传入统一的 logger
 export const POST = createYaiNexusHandler({
-  backendUrl: process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000/invoke",
+  backendUrl: process.env.PYTHON_BACKEND_URL || "http://127.0.0.1:8000",
   logger: apiLogger.raw, // 注入统一的 logger
   tracing: {
     enabled: true,
-    generateTraceId: generateTraceId
+    generateTraceId: generateTraceId,
   },
 });
 
