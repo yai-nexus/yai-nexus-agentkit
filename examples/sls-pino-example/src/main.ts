@@ -13,7 +13,7 @@
  * export SLS_LOGSTORE=your_logstore
  */
 
-import { createLogger } from "@yai-nexus/pino-support";
+import { createEnhancedLogger, presets } from "@yai-nexus/pino-support";
 import { config } from "dotenv";
 
 // 加载环境变量
@@ -22,39 +22,40 @@ config();
 async function main(): Promise<void> {
   console.log("启动 SLS 日志集成示例 (Pino 版本)...");
   try {
-    // 1. 设置日志配置 (写入当前小时目录)
-    // 注意：pino-support 不支持 hourly strategy，只能写入固定路径
-    const now = new Date();
-    const currentHour = `${now.getFullYear()}${String(
-      now.getMonth() + 1
-    ).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(
-      now.getHours()
-    ).padStart(2, "0")}`;
-    const logPath = `../../logs/${currentHour}/sls-pino-example.log`;
-
-    const logger = await createLogger({
+    // 1. 使用脚本预设创建增强 logger
+    // 自动支持按小时分目录，无需手动计算路径
+    const logger = await createEnhancedLogger({
       serviceName: "sls-pino-example",
-      level: "debug",
-      console: { enabled: true, pretty: true },
-      file: { enabled: true, path: logPath, pretty: true },
+      ...presets.script("../../logs"),
     });
 
     logger.info("服务启动", { service: "sls-pino-example", version: "0.1.0" });
+
+    // 演示增强 logger 的便捷方法
+    const userLogger = logger.forUser("demo_user");
+    const dbLogger = logger.forModule("database");
+
     logger.info("结构化日志演示", {
       foo: "bar",
       time: new Date().toISOString(),
     });
-    logger.warn("警告日志演示", { userId: "demo_user" });
+
+    // 演示性能日志
+    dbLogger.logPerformance("query_users", 45, {
+      query: "SELECT * FROM users",
+      rows: 156,
+    });
+
+    // 演示用户相关日志
+    userLogger.warn("用户操作警告", { action: "login_attempt" });
+
+    // 演示错误日志的便捷方法
     try {
       throw new Error("演示错误");
     } catch (error) {
-      logger.error("捕获异常", {
-        error: {
-          name: (error as Error).name,
-          message: (error as Error).message,
-          stack: (error as Error).stack,
-        },
-      });
+      if (error instanceof Error) {
+        logger.logError(error, { context: "demo_operation" });
+      }
     }
     logger.info(
       "日志演示结束，日志文件位置: ../../logs/current/sls-pino-example.log"

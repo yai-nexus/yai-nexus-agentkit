@@ -6,6 +6,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import pino from "pino";
+import { EnhancedLogger } from "./enhanced-logger";
 import { detectEnvironment, supportsFileOperations } from "./environment";
 import {
   DailyDirectoryStrategy,
@@ -198,43 +199,101 @@ export async function setupLogging(
 }
 
 /**
- * Convenience functions
+ * 配置预设 - 提供常用的日志配置模板
  */
-export async function createDevLogger(
-  serviceName: string
-): Promise<pino.Logger> {
-  return createLogger({
-    serviceName,
-    level: "debug",
+export const presets = {
+  /**
+   * 开发环境预设：debug 级别，美化输出，文件和控制台都启用
+   */
+  development: {
+    level: "debug" as const,
     console: { enabled: true, pretty: true },
-    file: { enabled: true, pretty: true, strategy: "hourly" },
-  });
-}
+    file: { enabled: true, pretty: true, strategy: "hourly" as const },
+  },
 
-export async function createProdLogger(
-  serviceName: string
-): Promise<pino.Logger> {
-  return createLogger({
-    serviceName,
-    level: "info",
+  /**
+   * 生产环境预设：info 级别，JSON 输出，文件和控制台都启用
+   */
+  production: {
+    level: "info" as const,
     console: { enabled: true, pretty: false },
-    file: { enabled: true, pretty: false, strategy: "hourly" },
-  });
-}
+    file: { enabled: true, pretty: false, strategy: "hourly" as const },
+  },
 
-export async function createConsoleLogger(
-  serviceName: string
-): Promise<pino.Logger> {
-  return createLogger({
-    serviceName,
-    level: "info",
-    console: { enabled: true, pretty: false },
+  /**
+   * 仅控制台预设：适合临时脚本或测试
+   */
+  consoleOnly: {
+    level: "info" as const,
+    console: { enabled: true, pretty: true },
     file: { enabled: false },
-  });
-}
+  },
+
+  /**
+   * Next.js 应用预设：根据 NODE_ENV 自动选择开发或生产配置
+   */
+  nextjs: (baseDir: string = "../../logs") => {
+    const isDevelopment = process.env.NODE_ENV === "development";
+    return {
+      level: isDevelopment ? ("debug" as const) : ("info" as const),
+      console: { enabled: true, pretty: isDevelopment },
+      file: {
+        enabled: true,
+        pretty: true,
+        strategy: "hourly" as const,
+        baseDir,
+      },
+    };
+  },
+
+  /**
+   * 独立脚本预设：适合独立运行的脚本
+   */
+  script: (baseDir: string = "../../logs") => ({
+    level: "info" as const,
+    console: { enabled: true, pretty: true },
+    file: {
+      enabled: true,
+      pretty: true,
+      strategy: "hourly" as const,
+      baseDir,
+    },
+  }),
+} as const;
 
 // Re-export environment detection
 export { detectEnvironment, supportsFileOperations } from "./environment";
+
+// Re-export enhanced logger
+export {
+  EnhancedLogger,
+  generateRequestId,
+  generateTraceId,
+} from "./enhanced-logger";
+
+/**
+ * 创建增强的 logger，返回 EnhancedLogger 实例
+ *
+ * @example
+ * // 使用预设
+ * const logger = await createEnhancedLogger({
+ *   serviceName: "my-app",
+ *   ...presets.development,
+ *   file: { ...presets.development.file, baseDir: "../../logs" }
+ * });
+ *
+ * // 使用 Next.js 预设
+ * const logger = await createEnhancedLogger({
+ *   serviceName: "nextjs-app",
+ *   ...presets.nextjs("../../logs")
+ * });
+ */
+export async function createEnhancedLogger(
+  config: LoggerConfig
+): Promise<EnhancedLogger> {
+  const pinoLogger = await createLogger(config);
+  return new EnhancedLogger(pinoLogger);
+}
 
 // Re-export types
 export * from "./types";
