@@ -16,6 +16,7 @@ from ag_ui.core.events import (
     RunFinishedEvent,
     RunStartedEvent,
 )
+from ag_ui.encoder import EventEncoder
 from langchain_core.runnables import Runnable
 
 from .errors import EventTranslationError
@@ -102,7 +103,11 @@ class AGUIAdapter:
                     logger.warning(f"Failed to translate event: {e}")
                     continue
                 except Exception as e:
-                    logger.error(f"Unexpected error translating event: {e}")
+                    logger.exception(
+                        "Unexpected error translating event",
+                        error_type=type(e).__name__,
+                        error_message=str(e),
+                    )
                     continue
 
             # 步骤 4: 产生 AG-UI 的 "完成" 事件
@@ -125,7 +130,7 @@ class AGUIAdapter:
             )
 
         except Exception as e:
-            logger.error(
+            logger.exception(
                 "AGUIAdapter error",
                 task_id=task.id,
                 error_type=type(e).__name__,
@@ -139,6 +144,45 @@ class AGUIAdapter:
                 event_data=run_error.model_dump(),
             )
             yield run_error
+
+    async def create_official_stream(self, task: Task, accept_header: str = None):
+        """
+        创建官方 AG-UI 格式的事件流
+        内部处理 EventEncoder，返回编码后的 SSE 数据
+
+        Args:
+            task: AG-UI 任务对象
+            accept_header: HTTP Accept 头，用于 EventEncoder
+
+        Yields:
+            编码后的 SSE 事件数据
+        """
+        # 创建 AG-UI 官方的事件编码器
+        encoder = EventEncoder(accept=accept_header)
+
+        logger.info(
+            "Creating official AG-UI stream",
+            task_id=task.id,
+            thread_id=task.thread_id,
+            accept_header=accept_header,
+        )
+
+        try:
+            # 使用核心的 stream_events 方法获取事件对象
+            async for event_obj in self.stream_events(task):
+                # 使用官方编码器编码事件，自动处理格式兼容性
+                yield encoder.encode(event_obj)
+
+        except Exception as e:
+            logger.exception(
+                "Error in official stream creation",
+                task_id=task.id,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+            # 发送错误事件，使用官方编码器
+            error_event = RunErrorEvent(type="RUN_ERROR", message=str(e))
+            yield encoder.encode(error_event)
 
     def create_fastapi_endpoint(self):
         """

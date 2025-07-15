@@ -6,12 +6,12 @@ import {
   type CopilotRuntimeChatCompletionRequest,
   type CopilotRuntimeChatCompletionResponse,
 } from "@copilotkit/runtime";
+import type { EnhancedLogger } from "@yai-nexus/pino-support";
 import { NextRequest } from "next/server";
-import type { Logger } from "pino";
 
 export interface CreateYaiNexusHandlerOptions {
   backendUrl: string;
-  logger: Logger; // 必填：应用提供统一的 logger
+  logger: EnhancedLogger; // 必填：应用提供统一的 EnhancedLogger
   tracing?: {
     enabled?: boolean;
     generateTraceId?: () => string;
@@ -25,7 +25,7 @@ export interface CreateYaiNexusHandlerOptions {
 class YaiNexusServiceAdapter implements CopilotServiceAdapter {
   private httpAgent: HttpAgent;
   private options: CreateYaiNexusHandlerOptions;
-  public baseLogger: Logger;
+  public baseLogger: EnhancedLogger;
 
   constructor(backendUrl: string, options: CreateYaiNexusHandlerOptions) {
     // 使用 /agui 端点，这个端点返回 AG-UI 对象而不是 SSE 流
@@ -57,7 +57,7 @@ class YaiNexusServiceAdapter implements CopilotServiceAdapter {
     traceId?: string;
     runId?: string;
     threadId?: string;
-  }): Logger {
+  }): EnhancedLogger {
     return this.baseLogger.child(context);
   }
 

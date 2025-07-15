@@ -9,8 +9,6 @@ from typing import Annotated, Any, Dict, List, TypedDict
 
 # 核心依赖
 from ag_ui.core import RunAgentInput
-from ag_ui.core.events import RunErrorEvent
-from ag_ui.encoder import EventEncoder
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -292,63 +290,37 @@ async def health_check():
     return {"status": "healthy", "timestamp": time.time()}
 
 
-@app.post("/invoke")
-async def invoke_agent(request_data: RunAgentInput, request: Request):
+async def validate_and_create_task(request_data: RunAgentInput) -> Task:
     """
-    接收 AG-UI 标准输入，并使用 AGUIAdapter 返回流式响应。
+    提取的公共验证和 Task 创建逻辑
+
+    Args:
+        request_data: AG-UI 标准输入
+
+    Returns:
+        验证后的 Task 对象
+
+    Raises:
+        HTTPException: 当输入验证失败时
     """
-    req_logger = request.state.logger.bind(
-        run_id=request_data.run_id, thread_id=request_data.thread_id, endpoint="/invoke"
-    )
-
-    try:
-        req_logger.info(
-            "Received agent invoke request", message_count=len(request_data.messages)
-        )
-
-        if not request_data.messages:
-            raise HTTPException(
-                status_code=400, detail="Request body must contain 'messages' array."
-            )
-
-        last_message = request_data.messages[-1]
-        if not last_message.content.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="The last message must have non-empty 'content'.",
-            )
-
-        # 创建 Adapter 需要的 Task 对象
-        task = Task(
-            id=request_data.run_id or f"run_{uuid.uuid4().hex}",
-            query=last_message.content,
-            thread_id=request_data.thread_id or f"thread_{uuid.uuid4().hex}",
-        )
-
-        req_logger.info(
-            "Forwarding task to AGUIAdapter", task_id=task.id, thread_id=task.thread_id
-        )
-
-        # AGUIAdapter 会自动处理事件流生成和错误捕获
-        return EventSourceResponse(
-            agui_adapter.event_stream_adapter(task),
-            ping=15,
-            media_type="text/event-stream",
-        )
-
-    except HTTPException as http_exc:
-        # 重新抛出 HTTP 异常，让 FastAPI 处理
-        raise http_exc
-    except Exception as e:
-        # 对于其他所有异常，记录并返回一个标准的 500 错误
-        req_logger.exception(
-            "An unexpected error occurred in /invoke endpoint",
-            error=str(e),
-            error_type=type(e).__name__,
-        )
+    if not request_data.messages:
         raise HTTPException(
-            status_code=500, detail="An internal server error occurred."
+            status_code=400, detail="Request body must contain 'messages' array."
         )
+
+    last_message = request_data.messages[-1]
+    if not last_message.content.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="The last message must have non-empty 'content'.",
+        )
+
+    # 创建 Adapter 需要的 Task 对象
+    return Task(
+        id=request_data.run_id or f"run_{uuid.uuid4().hex}",
+        query=last_message.content,
+        thread_id=request_data.thread_id or f"thread_{uuid.uuid4().hex}",
+    )
 
 
 @app.post("/agui")
@@ -365,24 +337,8 @@ async def agui_agent(request_data: RunAgentInput, request: Request):
             "Received AG-UI agent request", message_count=len(request_data.messages)
         )
 
-        if not request_data.messages:
-            raise HTTPException(
-                status_code=400, detail="Request body must contain 'messages' array."
-            )
-
-        last_message = request_data.messages[-1]
-        if not last_message.content.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="The last message must have non-empty 'content'.",
-            )
-
-        # 创建 Adapter 需要的 Task 对象
-        task = Task(
-            id=request_data.run_id or f"run_{uuid.uuid4().hex}",
-            query=last_message.content,
-            thread_id=request_data.thread_id or f"thread_{uuid.uuid4().hex}",
-        )
+        # 使用提取的公共验证逻辑
+        task = await validate_and_create_task(request_data)
 
         req_logger.info(
             "Processing AG-UI streaming task", task_id=task.id, thread_id=task.thread_id
@@ -392,31 +348,10 @@ async def agui_agent(request_data: RunAgentInput, request: Request):
         accept_header = request.headers.get("accept")
         req_logger.info("Request accept header", accept_header=accept_header)
 
-        # 创建 AG-UI 官方的事件编码器
-        encoder = EventEncoder(accept=accept_header)
-
-        # 使用官方 EventEncoder 的 SSE 流
-        async def agui_sse_stream():
-            event_count = 0
-            try:
-                # 使用新的 stream_events 方法，直接获取 Pydantic 对象
-                async for event_obj in agui_adapter.stream_events(task):
-                    event_count += 1
-
-                    # 使用官方编码器编码事件，自动处理格式兼容性
-                    yield encoder.encode(event_obj)
-
-                req_logger.info("AG-UI streaming completed", event_count=event_count)
-            except Exception as e:
-                req_logger.error("Error in AG-UI streaming", error=str(e))
-                # 发送错误事件，使用官方编码器和正确的事件类型
-                error_event = RunErrorEvent(type="RUN_ERROR", message=str(e))
-                yield encoder.encode(error_event)
-
-        # 返回 SSE 流，使用编码器提供的正确 content type
-        # 注意：不使用 EventSourceResponse，因为 EventEncoder 已经处理了 SSE 格式
+        # 使用 AGUIAdapter 的统一官方流接口
         return StreamingResponse(
-            agui_sse_stream(), media_type=encoder.get_content_type()
+            agui_adapter.create_official_stream(task, accept_header),
+            media_type="text/event-stream",
         )
 
     except HTTPException as http_exc:
