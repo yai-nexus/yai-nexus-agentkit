@@ -2,9 +2,6 @@
  * Enhanced pino-support with directory strategy support
  */
 
-import * as fs from "fs";
-import * as os from "os";
-import * as path from "path";
 import pino from "pino";
 import { EnhancedLogger } from "./enhanced-logger";
 import { detectEnvironment, supportsFileOperations } from "./environment";
@@ -15,6 +12,25 @@ import {
   SimpleFileStrategy,
 } from "./strategies";
 import { LoggerConfig } from "./types";
+
+// 动态导入 Node.js 模块以避免浏览器打包错误
+async function getNodeModules() {
+  if (!supportsFileOperations()) {
+    return null;
+  }
+
+  try {
+    const [fs, os, path] = await Promise.all([
+      import("fs"),
+      import("os"),
+      import("path"),
+    ]);
+    return { fs, os, path };
+  } catch (error) {
+    console.warn("Failed to import Node.js modules:", error);
+    return null;
+  }
+}
 
 // 导出策略类和接口
 export {
@@ -30,9 +46,9 @@ export type { LoggerConfig } from "./types";
 /**
  * 创建目录策略实例
  */
-function createDirectoryStrategy(
+async function createDirectoryStrategy(
   config: LoggerConfig
-): DirectoryStrategy | null {
+): Promise<DirectoryStrategy | null> {
   if (!config.file?.enabled) {
     return null;
   }
@@ -42,9 +58,14 @@ function createDirectoryStrategy(
 
   // 如果指定了具体的 path，使用简单文件策略
   if (fileConfig.path) {
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) {
+      throw new Error("Path operations require Node.js environment");
+    }
+
     return new SimpleFileStrategy({
-      baseDir: path.dirname(fileConfig.path),
-      filename: path.basename(fileConfig.path),
+      baseDir: nodeModules.path.dirname(fileConfig.path),
+      filename: nodeModules.path.basename(fileConfig.path),
     });
   }
 
@@ -112,46 +133,56 @@ export async function createLogger(config: LoggerConfig): Promise<pino.Logger> {
 
   // File stream (Node.js only) - enhanced with directory strategy support
   if (config.file?.enabled && supportsFileOperations()) {
-    const strategy = createDirectoryStrategy(config);
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) {
+      console.warn("File logging requires Node.js environment");
+    } else {
+      const strategy = await createDirectoryStrategy(config);
 
-    if (strategy) {
-      try {
-        // 使用策略生成日志文件路径
-        const filePath = strategy.getLogPath(config.serviceName);
+      if (strategy) {
+        try {
+          // 使用策略生成日志文件路径
+          const filePath = await strategy.getLogPath(config.serviceName);
 
-        // 确保目录存在（策略已经处理了目录创建）
-        const dir = path.dirname(filePath);
-        fs.mkdirSync(dir, { recursive: true });
+          // 确保目录存在（策略已经处理了目录创建）
+          const dir = nodeModules.path.dirname(filePath);
+          nodeModules.fs.mkdirSync(dir, { recursive: true });
 
-        // 创建文件流
-        const fileStream = fs.createWriteStream(filePath, { flags: "a" });
+          // 创建文件流
+          const fileStream = nodeModules.fs.createWriteStream(filePath, {
+            flags: "a",
+          });
 
-        // 应用美化格式（如果请求）
-        if (config.file.pretty) {
-          try {
-            const { default: pretty } = await import("pino-pretty");
+          // 应用美化格式（如果请求）
+          if (config.file.pretty) {
+            try {
+              const { default: pretty } = await import("pino-pretty");
 
-            // 使用 pino-pretty 输出到文件
-            streams.push({
-              stream: pretty({
-                destination: filePath,
-                colorize: false,
-                translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
-                ignore: "pid,hostname",
-                sync: true,
-              }),
-            });
-          } catch (error) {
-            // Fallback to JSON format if pino-pretty fails
-            console.warn("pino-pretty error for file output:", error);
+              // 使用 pino-pretty 输出到文件
+              streams.push({
+                stream: pretty({
+                  destination: filePath,
+                  colorize: false,
+                  translateTime: "SYS:yyyy-mm-dd HH:MM:ss",
+                  ignore: "pid,hostname",
+                  sync: true,
+                }),
+              });
+            } catch (error) {
+              // Fallback to JSON format if pino-pretty fails
+              console.warn("pino-pretty error for file output:", error);
+              streams.push({ stream: fileStream });
+            }
+          } else {
+            // Default JSON format
             streams.push({ stream: fileStream });
           }
-        } else {
-          // Default JSON format
-          streams.push({ stream: fileStream });
+        } catch (error: any) {
+          console.warn(
+            "File logging failed:",
+            error?.message || "Unknown error"
+          );
         }
-      } catch (error: any) {
-        console.warn("File logging failed:", error?.message || "Unknown error");
       }
     }
   }
@@ -299,13 +330,15 @@ export async function createEnhancedLogger(
 export * from "./types";
 
 // Metadata function
-export function getLoggerMetadata(
+export async function getLoggerMetadata(
   _logger: pino.Logger
-): Record<string, unknown> {
+): Promise<Record<string, unknown>> {
+  const nodeModules = await getNodeModules();
+
   return {
     version: "0.2.6", // Static version to avoid require()
-    pid: process.pid,
-    hostname: os.hostname(),
+    pid: typeof process !== "undefined" ? process.pid : undefined,
+    hostname: nodeModules?.os.hostname() || "unknown",
     timestamp: new Date().toISOString(),
   };
 }

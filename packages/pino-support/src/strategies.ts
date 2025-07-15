@@ -7,8 +7,16 @@
  * - SimpleFileStrategy: 简单文件存储策略
  */
 
-import * as fs from "fs";
-import * as path from "path";
+// 动态导入 Node.js 模块以避免浏览器打包错误
+async function getNodeModules() {
+  try {
+    const [fs, path] = await Promise.all([import("fs"), import("path")]);
+    return { fs, path };
+  } catch (error) {
+    console.warn("Failed to import Node.js modules:", error);
+    return null;
+  }
+}
 
 /**
  * 日志路径策略接口
@@ -19,7 +27,7 @@ export interface DirectoryStrategy {
    * @param serviceName 服务名称
    * @returns 日志文件的完整路径
    */
-  getLogPath(serviceName: string): string;
+  getLogPath(serviceName: string): Promise<string>;
 
   /**
    * 获取策略元数据
@@ -32,16 +40,26 @@ export interface DirectoryStrategy {
  * 简化的根目录获取 - 直接使用当前工作目录
  * 用户需要通过 baseDir 参数指定正确的相对路径
  */
-function getBaseDirectory(baseDir: string): string {
-  return path.resolve(process.cwd(), baseDir);
+async function getBaseDirectory(baseDir: string): Promise<string> {
+  const nodeModules = await getNodeModules();
+  if (!nodeModules) {
+    throw new Error("Path operations require Node.js environment");
+  }
+  return nodeModules.path.resolve(process.cwd(), baseDir);
 }
 
 /**
  * 确保目录存在
  */
-function ensureDirectory(dirPath: string): boolean {
+async function ensureDirectory(dirPath: string): Promise<boolean> {
+  const nodeModules = await getNodeModules();
+  if (!nodeModules) {
+    console.error("Directory operations require Node.js environment");
+    return false;
+  }
+
   try {
-    fs.mkdirSync(dirPath, { recursive: true });
+    nodeModules.fs.mkdirSync(dirPath, { recursive: true });
     return true;
   } catch (error) {
     console.error(`Failed to create directory ${dirPath}:`, error);
@@ -59,7 +77,6 @@ export class HourlyDirectoryStrategy implements DirectoryStrategy {
   private baseDir: string;
   private timezone: string;
   private createSymlink: boolean;
-  private createReadme: boolean;
   private currentHour: string | null = null;
   private currentDir: string | null = null;
 
@@ -68,45 +85,45 @@ export class HourlyDirectoryStrategy implements DirectoryStrategy {
       baseDir?: string;
       timezone?: string;
       createSymlink?: boolean;
-      createReadme?: boolean;
     } = {}
   ) {
     this.baseDir = options.baseDir || "logs";
     this.timezone =
       options.timezone || process.env.LOG_TIMEZONE || "Asia/Shanghai";
     this.createSymlink = options.createSymlink !== false; // 默认为 true
-    this.createReadme = options.createReadme !== false; // 默认为 true
   }
 
-  getLogPath(serviceName: string): string {
+  async getLogPath(serviceName: string): Promise<string> {
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) {
+      throw new Error("Path operations require Node.js environment");
+    }
+
     const now = new Date();
     const hourDir = this.formatHourDirectory(now);
 
     // 缓存优化：如果还是同一小时，直接返回缓存的路径
     if (this.currentHour === hourDir && this.currentDir) {
-      return path.join(this.currentDir, `${serviceName}.log`);
+      return nodeModules.path.join(this.currentDir, `${serviceName}.log`);
     }
 
-    const logDir = getBaseDirectory(path.join(this.baseDir, hourDir));
+    const logDir = await getBaseDirectory(
+      nodeModules.path.join(this.baseDir, hourDir)
+    );
 
     // 确保目录存在
-    if (ensureDirectory(logDir)) {
+    if (await ensureDirectory(logDir)) {
       this.currentHour = hourDir;
       this.currentDir = logDir;
 
       // 创建/更新软链接
       if (this.createSymlink) {
-        const baseDirectory = getBaseDirectory(this.baseDir);
-        this.createCurrentSymlink(baseDirectory, hourDir);
-      }
-
-      // 创建 README
-      if (this.createReadme) {
-        this.createHourReadme(logDir, hourDir);
+        const baseDirectory = await getBaseDirectory(this.baseDir);
+        await this.createCurrentSymlink(baseDirectory, hourDir);
       }
     }
 
-    return path.join(logDir, `${serviceName}.log`);
+    return nodeModules.path.join(logDir, `${serviceName}.log`);
   }
 
   getMetadata(): Record<string, any> {
@@ -115,7 +132,6 @@ export class HourlyDirectoryStrategy implements DirectoryStrategy {
       baseDir: this.baseDir,
       timezone: this.timezone,
       createSymlink: this.createSymlink,
-      createReadme: this.createReadme,
       currentHour: this.currentHour,
       currentDir: this.currentDir,
     };
@@ -131,99 +147,31 @@ export class HourlyDirectoryStrategy implements DirectoryStrategy {
     return `${year}${month}${day}-${hour}`;
   }
 
-  private createCurrentSymlink(rootDir: string, hourDir: string): void {
+  private async createCurrentSymlink(
+    rootDir: string,
+    hourDir: string
+  ): Promise<void> {
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) return;
+
     try {
-      const symlinkPath = path.join(rootDir, this.baseDir, "current");
+      const symlinkPath = nodeModules.path.join(
+        rootDir,
+        this.baseDir,
+        "current"
+      );
 
       // 删除现有的软链接（如果存在）
-      if (fs.existsSync(symlinkPath)) {
-        fs.unlinkSync(symlinkPath);
+      if (nodeModules.fs.existsSync(symlinkPath)) {
+        nodeModules.fs.unlinkSync(symlinkPath);
       }
 
       // 创建新的软链接
-      fs.symlinkSync(hourDir, symlinkPath, "dir");
+      nodeModules.fs.symlinkSync(hourDir, symlinkPath, "dir");
     } catch (error) {
       // 软链接创建失败不应该影响日志功能
       console.warn(`Failed to create symlink:`, error);
     }
-  }
-
-  private createHourReadme(logDir: string, hourDir: string): void {
-    try {
-      const readmePath = path.join(logDir, "README.md");
-
-      // 如果 README 已存在，不覆盖
-      if (fs.existsSync(readmePath)) {
-        return;
-      }
-
-      const readmeContent = `# 日志目录：${hourDir}
-
-此目录包含 ${hourDir
-        .replace("-", " 年 ")
-        .replace(/(\d{2})$/, "$1 时")} 的所有服务日志。
-
-## 目录结构
-
-\`\`\`
-${hourDir}/
-├── README.md           # 本文件
-├── nextjs-app.log      # Next.js 应用日志
-├── python-backend.log  # Python 后端日志
-└── *.log              # 其他服务日志
-\`\`\`
-
-## 日志格式
-
-- **Next.js 应用**: JSON 格式，包含请求追踪、性能指标等
-- **Python 后端**: 结构化日志，包含上下文信息和错误追踪
-
-## 相关目录
-
-- \`../current/\` - 指向当前小时目录的软链接
-- \`../${this.getPreviousHour(hourDir)}/\` - 上一小时的日志
-- \`../${this.getNextHour(hourDir)}/\` - 下一小时的日志（如果存在）
-
----
-生成时间: ${new Date().toISOString()}
-`;
-
-      fs.writeFileSync(readmePath, readmeContent, "utf8");
-    } catch (error) {
-      console.warn(`Failed to create README:`, error);
-    }
-  }
-
-  private getPreviousHour(hourDir: string): string {
-    const match = hourDir.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})$/);
-    if (!match) return hourDir;
-
-    const [, year, month, day, hour] = match;
-    const date = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      parseInt(hour)
-    );
-    date.setHours(date.getHours() - 1);
-
-    return this.formatHourDirectory(date);
-  }
-
-  private getNextHour(hourDir: string): string {
-    const match = hourDir.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})$/);
-    if (!match) return hourDir;
-
-    const [, year, month, day, hour] = match;
-    const date = new Date(
-      parseInt(year),
-      parseInt(month) - 1,
-      parseInt(day),
-      parseInt(hour)
-    );
-    date.setHours(date.getHours() + 1);
-
-    return this.formatHourDirectory(date);
   }
 }
 
@@ -233,29 +181,33 @@ ${hourDir}/
 export class DailyDirectoryStrategy implements DirectoryStrategy {
   private baseDir: string;
   private createSymlink: boolean;
-  private createReadme: boolean;
 
   constructor(
     options: {
       baseDir?: string;
       createSymlink?: boolean;
-      createReadme?: boolean;
     } = {}
   ) {
     this.baseDir = options.baseDir || "logs";
     this.createSymlink = options.createSymlink !== false;
-    this.createReadme = options.createReadme !== false;
   }
 
-  getLogPath(serviceName: string): string {
+  async getLogPath(serviceName: string): Promise<string> {
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) {
+      throw new Error("Path operations require Node.js environment");
+    }
+
     const now = new Date();
     const dayDir = this.formatDayDirectory(now);
 
-    const logDir = getBaseDirectory(path.join(this.baseDir, dayDir));
+    const logDir = await getBaseDirectory(
+      nodeModules.path.join(this.baseDir, dayDir)
+    );
 
-    ensureDirectory(logDir);
+    await ensureDirectory(logDir);
 
-    return path.join(logDir, `${serviceName}.log`);
+    return nodeModules.path.join(logDir, `${serviceName}.log`);
   }
 
   getMetadata(): Record<string, any> {
@@ -263,7 +215,6 @@ export class DailyDirectoryStrategy implements DirectoryStrategy {
       strategyName: "daily_directory",
       baseDir: this.baseDir,
       createSymlink: this.createSymlink,
-      createReadme: this.createReadme,
     };
   }
 
@@ -294,13 +245,18 @@ export class SimpleFileStrategy implements DirectoryStrategy {
     this.filename = options.filename || "{serviceName}.log";
   }
 
-  getLogPath(serviceName: string): string {
-    const logDir = getBaseDirectory(this.baseDir);
+  async getLogPath(serviceName: string): Promise<string> {
+    const nodeModules = await getNodeModules();
+    if (!nodeModules) {
+      throw new Error("Path operations require Node.js environment");
+    }
 
-    ensureDirectory(logDir);
+    const logDir = await getBaseDirectory(this.baseDir);
+
+    await ensureDirectory(logDir);
 
     const filename = this.filename.replace("{serviceName}", serviceName);
-    return path.join(logDir, filename);
+    return nodeModules.path.join(logDir, filename);
   }
 
   getMetadata(): Record<string, any> {

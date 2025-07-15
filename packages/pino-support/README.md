@@ -11,6 +11,7 @@
 - 🛠 **TypeScript 原生**：完整的类型安全和智能提示
 - 🌩️ **多云支持**：支持阿里云 SLS，架构可扩展
 - 🔧 **框架无关**：兼容 Next.js、Express、Fastify 等
+- ⚡ **Next.js 优化**：动态导入 Node.js 模块，避免浏览器打包错误
 
 ## 快速开始
 
@@ -58,13 +59,14 @@ logger.info('这条日志在任何环境都能正常工作');
 
 ### 3. Next.js 集成
 
+**完全兼容 Next.js**：自动检测环境，动态导入 Node.js 模块，避免浏览器打包错误。
+
 ```typescript
 // lib/logger.ts
-import { createDevLogger, createProdLogger } from '@yai-nexus/pino-support';
+import { setupLogging, presets } from '@yai-nexus/pino-support';
 
-const logger = process.env.NODE_ENV === 'development'
-  ? createDevLogger('nextjs-app')
-  : createProdLogger('nextjs-app');
+// 使用 Next.js 预设，自动适配开发/生产环境
+const logger = await setupLogging('nextjs-app', presets.nextjs('../../logs'));
 
 export { logger };
 
