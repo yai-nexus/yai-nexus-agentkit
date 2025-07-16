@@ -72,9 +72,6 @@ importers:
       '@yai-nexus/loglayer-support':
         specifier: link:../../packages/loglayer-support
         version: link:../../packages/loglayer-support
-      '@yai-nexus/pino-support':
-        specifier: file:../../packages/pino-support
-        version: file:packages/pino-support(pino@9.7.0)
       dotenv:
         specifier: ^16.4.5
         version: 16.6.1

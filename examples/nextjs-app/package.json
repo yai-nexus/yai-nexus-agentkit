@@ -14,7 +14,6 @@
     "@copilotkit/react-ui": "^1.9.1",
     "@yai-nexus/fekit": "file:../../packages/fekit",
     "@yai-nexus/loglayer-support": "link:../../packages/loglayer-support",
-    "@yai-nexus/pino-support": "file:../../packages/pino-support",
     "dotenv": "^16.4.5",
     "next": "15.3.5",
     "next-themes": "^0.4.6",

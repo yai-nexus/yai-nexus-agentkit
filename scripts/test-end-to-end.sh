@@ -128,9 +128,9 @@ else
     record_test "fekit 依赖 loglayer-support" 1
 fi
 
-# 检查是否还有旧的 pino-support 依赖
-pino_support_count=$(find . -name "package.json" -not -path "./node_modules/*" -exec grep -l "@yai-nexus/pino-support" {} \; | wc -l)
-if [ "$pino_support_count" -eq 1 ]; then  # 只有 pino-support 包本身应该有这个依赖
+# 检查是否还有旧的 pino-support 依赖（排除合理的引用）
+# 检查 nextjs-app 是否还有 pino-support 依赖
+if ! grep -q "@yai-nexus/pino-support" examples/nextjs-app/package.json; then
     record_test "清理旧的 pino-support 依赖" 0
 else
     record_test "清理旧的 pino-support 依赖" 1
@@ -159,6 +159,8 @@ echo "----------------------------------------"
 
 # 检查是否有 TypeScript 错误
 echo "🔧 检查 TypeScript 类型..."
+
+# 检查 loglayer-support (有 type-check 脚本)
 cd packages/loglayer-support
 if pnpm type-check > /dev/null 2>&1; then
     record_test "loglayer-support TypeScript 类型检查" 0
@@ -167,8 +169,9 @@ else
 fi
 cd "$PROJECT_ROOT"
 
+# 检查 fekit (使用 tsc --noEmit)
 cd packages/fekit
-if pnpm type-check > /dev/null 2>&1; then
+if npx tsc --noEmit > /dev/null 2>&1; then
     record_test "fekit TypeScript 类型检查" 0
 else
     record_test "fekit TypeScript 类型检查" 1

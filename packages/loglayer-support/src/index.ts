@@ -100,6 +100,8 @@ export async function getGlobalLogger(
 /**
  * 创建同步 Logger 代理
  * 用于导出，支持异步初始化
+ *
+ * 修复版本：确保链式调用的同步性
  */
 export function createLoggerProxy(serviceName: string): IEnhancedLogger {
   const handler: ProxyHandler<any> = {
@@ -115,7 +117,44 @@ export function createLoggerProxy(serviceName: string): IEnhancedLogger {
         return value;
       }
 
-      // 如果还未初始化，返回异步方法
+      // 如果还未初始化，需要区分不同类型的方法
+      if (typeof prop === "string") {
+        // 返回 logger 子对象的方法（需要返回代理对象）
+        const chainableMethods = [
+          "child",
+          "forRequest",
+          "forUser",
+          "forModule",
+        ];
+        if (chainableMethods.includes(prop)) {
+          return (...args: any[]) => {
+            // 返回一个新的代理对象，它会在调用时等待初始化
+            return createChainedLoggerProxy(serviceName, prop, args);
+          };
+        }
+
+        // 普通日志方法（可以异步执行）
+        const logMethods = [
+          "debug",
+          "info",
+          "warn",
+          "error",
+          "logError",
+          "logPerformance",
+        ];
+        if (logMethods.includes(prop)) {
+          return async (...args: any[]) => {
+            const logger = await getGlobalLogger(serviceName);
+            const method = logger[prop as keyof IEnhancedLogger];
+            if (typeof method === "function") {
+              return (method as any).apply(logger, args);
+            }
+            return method;
+          };
+        }
+      }
+
+      // 其他属性的默认处理
       return async (...args: any[]) => {
         const logger = await getGlobalLogger(serviceName);
         const method = logger[prop as keyof IEnhancedLogger];
@@ -123,6 +162,42 @@ export function createLoggerProxy(serviceName: string): IEnhancedLogger {
           return (method as any).apply(logger, args);
         }
         return method;
+      };
+    },
+  };
+
+  return new Proxy({}, handler) as IEnhancedLogger;
+}
+
+/**
+ * 创建链式调用的代理对象
+ * 用于处理 child(), forRequest() 等返回 logger 子对象的方法
+ */
+function createChainedLoggerProxy(
+  serviceName: string,
+  methodName: string,
+  methodArgs: any[]
+): IEnhancedLogger {
+  const handler: ProxyHandler<any> = {
+    get(target, prop) {
+      // 如果是日志方法，异步执行
+      return async (...args: any[]) => {
+        const logger = await getGlobalLogger(serviceName);
+
+        // 先调用链式方法获取子 logger
+        const chainMethod = logger[methodName as keyof IEnhancedLogger];
+        if (typeof chainMethod === "function") {
+          const childLogger = (chainMethod as any).apply(logger, methodArgs);
+
+          // 然后调用子 logger 的方法
+          const targetMethod = childLogger[prop as keyof IEnhancedLogger];
+          if (typeof targetMethod === "function") {
+            return (targetMethod as any).apply(childLogger, args);
+          }
+          return targetMethod;
+        }
+
+        throw new Error(`Method ${methodName} not found on logger`);
       };
     },
   };
