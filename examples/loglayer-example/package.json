@@ -1,0 +1,40 @@
+{
+  "name": "loglayer-example",
+  "version": "1.0.0",
+  "description": "@yai-nexus/loglayer-support 使用示例和测试",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:basic": "node src/basic-usage.js",
+    "test:transports": "node src/transport-tests.js",
+    "test:wrapper": "node src/wrapper-tests.js",
+    "test:compatibility": "node src/compatibility-tests.js",
+    "test:migration": "node src/migration-example.js",
+    "test:all": "npm run test:basic && npm run test:transports && npm run test:wrapper && npm run test:compatibility",
+    "dev": "node --watch src/basic-usage.js",
+    "clean": "rm -rf logs/*.log"
+  },
+  "keywords": [
+    "loglayer",
+    "logging",
+    "example",
+    "nextjs",
+    "compatibility"
+  ],
+  "dependencies": {
+    "@yai-nexus/loglayer-support": "workspace:*",
+    "loglayer": "^6.6.0",
+    "@loglayer/transport-pino": "^2.0.0",
+    "@loglayer/transport-winston": "^2.0.0",
+    "@loglayer/transport-simple-pretty-terminal": "^2.0.0",
+    "@loglayer/plugin-redaction": "^2.0.0",
+    "pino": "^9.0.0",
+    "winston": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

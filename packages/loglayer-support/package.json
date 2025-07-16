@@ -1,0 +1,87 @@
+{
+  "name": "@yai-nexus/loglayer-support",
+  "version": "1.0.0",
+  "description": "基于 LogLayer 的统一日志解决方案，解决 Next.js 兼容性问题并提供未来保障",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [
+    "logging",
+    "logger",
+    "loglayer",
+    "nextjs",
+    "typescript",
+    "pino",
+    "winston",
+    "compatibility"
+  ],
+  "author": "YAI Nexus Team",
+  "license": "MIT",
+  "dependencies": {
+    "loglayer": "^6.6.0"
+  },
+  "peerDependencies": {
+    "@loglayer/transport-pino": "^2.0.0",
+    "@loglayer/transport-winston": "^2.0.0",
+    "@loglayer/transport-simple-pretty-terminal": "^2.0.0",
+    "@loglayer/plugin-redaction": "^2.0.0",
+    "pino": "^9.0.0",
+    "winston": "^3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@loglayer/transport-pino": {
+      "optional": true
+    },
+    "@loglayer/transport-winston": {
+      "optional": true
+    },
+    "@loglayer/transport-simple-pretty-terminal": {
+      "optional": true
+    },
+    "@loglayer/plugin-redaction": {
+      "optional": true
+    },
+    "pino": {
+      "optional": true
+    },
+    "winston": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "tsup": "^8.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yai-nexus/yai-nexus-agentkit.git",
+    "directory": "packages/loglayer-support"
+  },
+  "bugs": {
+    "url": "https://github.com/yai-nexus/yai-nexus-agentkit/issues"
+  },
+  "homepage": "https://github.com/yai-nexus/yai-nexus-agentkit#readme"
+}
