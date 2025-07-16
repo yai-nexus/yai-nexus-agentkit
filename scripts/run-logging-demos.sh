@@ -76,8 +76,8 @@ echo ""
 # 运行演示
 DEMO_STATUS=0
 
-# 1. 运行 SLS Loguru 演示
-run_demo "SLS Loguru 演示" "pnpm dev:example:sls-loguru" "Python 日志集成演示 (Loguru + SLS)" || DEMO_STATUS=1
+# 1. 运行 Loguru 演示
+run_demo "Loguru 演示" "pnpm dev:example:loguru" "Python 日志集成演示 (Loguru)" || DEMO_STATUS=1
 
 # 2. 运行 SLS Pino 演示  
 run_demo "SLS Pino 演示" "pnpm dev:example:sls-pino" "Node.js 日志集成演示 (Pino + SLS)" || DEMO_STATUS=1

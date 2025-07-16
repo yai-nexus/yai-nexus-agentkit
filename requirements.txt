@@ -7,4 +7,4 @@
 
 # Examples
 -e ./examples/python-backend
--e ./examples/sls-loguru-example
+-e ./examples/loguru-example

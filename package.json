@@ -8,7 +8,7 @@
     "build:sdk": "pnpm --filter agentkit build",
     "dev:example:next": "NODE_OPTIONS='--inspect' pnpm --filter nextjs-app dev",
     "dev:example:python": "cd examples/python-backend && source ../../.venv/bin/activate && python main.py",
-    "dev:example:sls-loguru": "cd examples/sls-loguru-example && source ../../.venv/bin/activate && python main.py",
+    "dev:example:loguru": "cd examples/loguru-example && source ../../.venv/bin/activate && python main.py",
 
     "install:python": "uv venv .venv && source .venv/bin/activate && uv pip install -r requirements.txt",
     "test:logging:python": "cd packages/loguru-support && source ../../.venv/bin/activate && python -m pytest tests/ -v",
