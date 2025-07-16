@@ -7,15 +7,38 @@ YAI Nexus 生态系统的统一 Monorepo，包含用于构建具有多 LLM 支�
 ```
 / (monorepo 根目录)
 ├── packages/
-│   ├── agentkit/          # Python 后端工具包
-│   └── fekit/             # TypeScript 前端 SDK
+│   ├── agentkit/              # Python 后端工具包
+│   ├── fekit/                 # TypeScript 前端 SDK
+│   ├── loglayer-support/      # 🆕 统一日志抽象层 (v0.3.0+)
+│   └── loguru-support/        # Python 日志支持
 ├── examples/
-│   ├── nextjs-app/        # Next.js 15 示例应用
-│   └── python-backend/    # Python 后端示例
-├── package.json           # 根工作区配置
-├── pnpm-workspace.yaml    # pnpm 工作区配置
-└── tsconfig.base.json     # 共享 TypeScript 配置
+│   ├── nextjs-app/            # Next.js 15 示例应用
+│   ├── python-backend/        # Python 后端示例
+│   └── loglayer-example/      # 🆕 日志系统使用示例和迁移指南
+├── package.json               # 根工作区配置
+├── pnpm-workspace.yaml        # pnpm 工作区配置
+├── CHANGELOG.md               # 🆕 版本更新日志
+└── tsconfig.base.json         # 共享 TypeScript 配置
 ```
+
+## ✨ v0.3.0 重大更新
+
+### 🎉 LogLayer 抽象层
+- **全新的日志解决方案**：基于 LogLayer 的统一日志抽象层
+- **解决 Next.js 兼容性**：彻底解决 webpack 打包问题
+- **代码量减少 99%+**：从 136 行复杂逻辑简化为 1 行代码
+- **完全向后兼容**：无需修改现有业务代码
+
+```typescript
+// 新版本：一行代码搞定日志系统！
+import { createNextjsLoggerSync } from "@yai-nexus/loglayer-support";
+export const logger = createNextjsLoggerSync('my-app');
+```
+
+详细信息请查看：
+- 📚 [迁移指南](./examples/loglayer-example/)
+- 📋 [更新日志](./CHANGELOG.md)
+- 🎯 [项目总结](./PROJECT_SUMMARY.md)
 
 ## 🚀 快速上手
 
