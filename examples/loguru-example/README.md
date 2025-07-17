@@ -1,35 +1,40 @@
-# SLS 日志集成示例
+# `@yai-nexus/loguru-support` 示例：集成云日志服务
 
-这是一个简化的示例，演示如何用最少的代码将 Loguru 日志发送到阿里云 SLS (Simple Log Service)。
+本项目提供了一个清晰的示例，演示如何使用 `@yai-nexus/loguru-support` 将您的 Python 应用日志与云日志服务（如此示例中的阿里云 SLS）进行集成。
 
-## 功能特点
+其核心设计思想是 **配置驱动** 和 **代码极简**，让您可以通过环境变量无缝对接到生产环境的日志基础设施。
 
-- **极简配置** - 从环境变量自动配置，无需手写配置文件
-- **轻量依赖** - 只依赖 `yai-loguru-support[sls]`，无需 yai-nexus-agentkit
-- **生产就绪** - 包含优雅停机机制，确保日志完整发送
-- **标准 API** - 使用原生 Loguru API，学习成本低
+## 🌟 核心特性
 
-## 快速开始
+- **环境驱动配置**：零代码修改，通过环境变量即可完成生产环境的日志配置。
+- **生产就绪**：内置优雅停机（Graceful Shutdown）机制，确保在应用退出前所有缓冲的日志都能被成功发送。
+- **原生 Loguru API**：无需学习新的日志 API，继续使用您所熟悉的 `loguru` 即可。
+- **轻量化设计**：仅依赖于核心的 `loguru-support` 包，无需引入整个 `agentkit`。
+
+## 🚀 快速开始
 
 ### 1. 安装依赖
 
 ```bash
-pip install -r requirements.txt
+pip install "yai-loguru-support[sls]"
+# 该命令会同时安装 loguru-support 和阿里云 SLS 所需的依赖
 ```
 
-### 2. 设置环境变量
+### 2. 配置环境变量
 
-```bash
-export SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
-export SLS_AK_ID=your_access_key_id
-export SLS_AK_KEY=your_access_key_secret
-export SLS_PROJECT=your_project
-export SLS_LOGSTORE=your_logstore
+在运行前，请设置以下环境变量以配置阿里云 SLS 连接信息。
 
-# 可选配置
-export SLS_TOPIC=python-app        # 默认: python-app
-export SLS_SOURCE=your-app-name    # 默认: yai-loguru-support
-```
+| 变量名 | 必填 | 描述 | 示例 |
+|:---|:---:|:---|:---|
+| `SLS_ENDPOINT` | ✅ | SLS 服务端点 | `cn-hangzhou.log.aliyuncs.com` |
+| `SLS_AK_ID` | ✅ | 阿里云 Access Key ID | `LTAI5t...` |
+| `SLS_AK_KEY` | ✅ | 阿里云 Access Key Secret | `xxx...` |
+| `SLS_PROJECT` | ✅ | SLS 项目名称 | `my-log-project` |
+| `SLS_LOGSTORE` | ✅ | SLS 日志库名称 | `app-logs` |
+| `SLS_TOPIC` | ❌ | 日志主题 (默认为 `python-app`) | `my-service` |
+| `SLS_SOURCE` | ❌ | 日志来源 (默认为 `yai-loguru-support`) | `my-app-instance` |
+
+> **提示**: 您可以在阿里云**日志服务控制台**的项目概览页找到 `Endpoint`，在 **AccessKey 管理**页面创建和获取 Access Key。
 
 ### 3. 运行示例
 
@@ -37,81 +42,56 @@ export SLS_SOURCE=your-app-name    # 默认: yai-loguru-support
 python main.py
 ```
 
-## 环境变量说明
+运行后，您应该能在阿里云 SLS 控制台的相应日志库中看到 "Hello SLS!" 这条日志。
 
-| 变量名 | 必填 | 说明 | 示例 |
-|--------|------|------|------|
-| `SLS_ENDPOINT` | ✅ | SLS 服务端点 | `cn-hangzhou.log.aliyuncs.com` |
-| `SLS_AK_ID` | ✅ | 阿里云 Access Key ID | `LTAI5t...` |
-| `SLS_AK_KEY` | ✅ | 阿里云 Access Key Secret | `xxx...` |
-| `SLS_PROJECT` | ✅ | SLS 项目名称 | `my-log-project` |
-| `SLS_LOGSTORE` | ✅ | SLS 日志库名称 | `app-logs` |
-| `SLS_TOPIC` | ❌ | 日志主题 | `python-app` |
-| `SLS_SOURCE` | ❌ | 日志来源 | `my-service` |
+##  dissected 代码解析
 
-## 代码示例
+`main.py` 的代码非常简洁，关键步骤如下：
 
 ```python
-import os
 import asyncio
 from loguru import logger
 from yai_loguru_support.sls import AliyunSlsSink
 from yai_loguru_support.utils import create_production_setup
 
 async def main():
-    # 1. 从环境变量创建 SLS Sink
+    # 1. 从环境变量自动创建 Sink 实例
+    # Sink 是 loguru 的术语，代表一个日志输出目标。
+    # .from_env() 方法会自动读取 SLS_* 环境变量并完成配置。
     sls_sink = AliyunSlsSink.from_env()
     
-    # 2. 添加到 loguru
+    # 2. 将 Sink 添加到 loguru
+    # `serialize=True` 会将日志记录转换为 JSON 格式，便于云服务处理。
     logger.add(sls_sink, serialize=True, level="INFO")
     
-    # 3. 设置优雅停机
+    # 3. 设置优雅停机钩子
+    # 这是关键一步！它能确保在程序退出时，所有在内存中排队的日志
+    # 都能被完整发送出去，避免日志丢失。
     create_production_setup([sls_sink])
     
-    # 4. 发送日志
-    logger.info("Hello SLS!", user_id="123")
+    # 4. 使用标准的 loguru API 发送日志
+    logger.info("Hello SLS!", user_id="123", request_id="abc-xyz")
     
-    # 5. 等待发送完成
+    # 5. 等待日志发送
+    # 日志是批量异步发送的，这里等待几秒确保发送完成。
+    # 在真实应用中，程序会持续运行。
     await asyncio.sleep(5)
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 获取阿里云 SLS 配置
+## 🔌 扩展到其他服务
 
-1. **登录阿里云控制台** → 日志服务 SLS
-2. **创建项目和日志库**（如果还没有）
-3. **获取 Endpoint**：在项目概览页面可以看到
-4. **获取 Access Key**：阿里云控制台 → AccessKey 管理
+本示例展示了与阿里云 SLS 的集成，但 `yai-loguru-support` 的设计是可扩展的。您可以参照 `yai_loguru_support/sls` 的实现，轻松创建与其他云日志服务（如 Sentry, DataDog, Grafana Loki 等）集成的 Sink。
 
-## 对比原版示例
+核心是实现一个遵循 `loguru` Sink 协议的类，并处理好批量发送和优雅停机。
 
-| 特性 | 原版 sls_example.py | 简化版 main.py |
-|------|-------------------|----------------|
-| 代码行数 | 210 行 | 80 行 |
-| 依赖数量 | yai-nexus-agentkit + yai-loguru-support | 仅 yai-loguru-support |
-| 功能范围 | 监控+告警+日志 | 仅日志集成 |
-| 学习成本 | 高 | 低 |
-| 维护成本 | 高 | 低 |
+## 💡 故障排查
 
-## 注意事项
-
-- SLS 使用批量发送优化性能，建议在程序结束前等待几秒确保日志发送完成
-- 生产环境建议设置合适的日志级别（INFO 或 WARNING 以上）
-- 确保网络能访问阿里云 SLS 服务
-- Access Key 请妥善保管，不要提交到代码仓库
-
-## 故障排除
-
-**Q: 提示缺少环境变量？**  
-A: 请检查是否设置了所有必需的 `SLS_*` 环境变量
-
-**Q: 连接超时？**  
-A: 检查网络连接和 SLS_ENDPOINT 配置是否正确
-
-**Q: 认证失败？**  
-A: 确认 Access Key ID 和 Secret 是否正确，且具有 SLS 写入权限
-
-**Q: 找不到项目或日志库？**  
-A: 请先在阿里云控制台创建对应的项目和日志库
+- **认证失败?**
+  请检查您的 Access Key ID 和 Secret 是否正确，并且该账户拥有对应 SLS Logstore 的写入权限。
+- **连接超时?**
+  请检查 `SLS_ENDPOINT` 是否正确，以及您的网络环境是否可以访问阿里云服务。
+- **找不到项目或日志库?**
+  请确保您已在阿里云控制台提前创建了对应的 Project 和 Logstore。

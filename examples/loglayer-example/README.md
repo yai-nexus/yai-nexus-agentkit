@@ -1,168 +1,95 @@
-# LogLayer Support 示例项目
+# `@yai-nexus/loglayer-support` 示例
 
-这个项目展示了 `@yai-nexus/loglayer-support` 的各种使用方法和最佳实践。
+欢迎来到 `loglayer-support` 的官方示例项目！本项目旨在通过生动的演示，展示 `@yai-nexus/loglayer-support` 如何彻底解决现代 Web 开发中的日志痛点，特别是 Next.js 环境下的兼容性问题。
 
-## 🎯 项目目标
+## 🌟 核心亮点：一行代码的革命
 
-- 演示 loglayer-support 的核心功能
-- 提供完整的使用示例
-- 展示从 pino-support 的迁移过程
-- 验证各种传输器的兼容性
+### 1. 极致简化
 
-## 📦 安装依赖
+传统上，在 Next.js 中设置一个健壮的日志系统可能需要上百行复杂的代码。`@yai-nexus/loglayer-support` 将其简化为 **1 行** 代码。
 
-```bash
-# 在项目根目录运行
-pnpm install
-
-# 或者在当前目录运行
-cd examples/loglayer-example
-pnpm install
+**传统方式**:
+```typescript
+// 可能需要复杂的异步初始化、代理对象、错误处理...
+// ... 100+ 行复杂、难以维护的逻辑
 ```
 
-## 🚀 运行示例
-
-### 基础使用示例
-```bash
-npm run test:basic
-```
-演示：
-- 环境检测
-- 预设配置使用
-- 上下文绑定
-- 增强方法
-- Next.js 兼容性
-
-### 传输器测试
-```bash
-npm run test:transports
-```
-测试：
-- Console 传输器
-- Winston 传输器
-- Pino 传输器
-- SimplePrettyTerminal 传输器
-- Redaction 插件
-- 性能对比
-
-### 迁移示例
-```bash
-npm run test:migration
-```
-展示：
-- 迁移前后代码对比
-- API 兼容性验证
-- 迁移步骤指南
-- 性能和维护性对比
-
-### 运行所有测试
-```bash
-npm run test:all
-```
-
-## 📁 项目结构
-
-```
-examples/loglayer-example/
-├── package.json              # 项目配置
-├── README.md                 # 项目文档
-└── src/
-    ├── basic-usage.js        # 基础使用示例
-    ├── transport-tests.js    # 传输器测试
-    ├── migration-example.js  # 迁移示例
-    └── compatibility-tests.js # 兼容性测试
-```
-
-## 🔧 核心功能演示
-
-### 1. 一行代码解决 Next.js 兼容性
-```javascript
+**使用 `loglayer-support`**:
+```typescript
 import { createNextjsLoggerSync } from '@yai-nexus/loglayer-support';
 
-// 一行代码解决所有问题！
-export const logger = createNextjsLoggerSync('my-app');
+export const logger = createNextjsLoggerSync('nextjs-app');
 ```
 
-### 2. 完全兼容的 API
-```javascript
-// 所有原有 API 都可以直接使用
-logger.info('基础日志');
-logger.forRequest(requestId).info('请求日志');
-logger.logError(error, context);
-logger.logPerformance('operation', duration, metadata);
+### 2. 专为 Next.js 设计
+
+- ✅ **零配置**：自动检测 Next.js 环境，无需手动配置。
+- ✅ **智能回退**：自动在 Pino、Winston 和 Console 传输器之间选择最佳方案，确保日志系统永不崩溃。
+- ✅ **开箱即用**：解决了 Webpack 和边缘计算环境中的所有已知兼容性问题。
+
+### 3. 直观易用的 API
+
+提供了一套富有表现力且易于使用的 API，帮助您创建结构化的、可查询的日志。
+
+```typescript
+// 基础日志
+logger.info('这是一条基础日志', { a: 1 });
+
+// 结构化上下文绑定
+logger.forRequest(requestId).info('带请求 ID 的日志');
+
+// 强大的错误和性能记录
+logger.logError(new Error('出错了'), { userId: '123' });
+logger.logPerformance('dbQuery', 120, { query: 'SELECT *' });
 ```
 
-### 3. 自动传输器选择
-```javascript
-// 自动选择最佳传输器：Pino -> Winston -> Console
-const logger = await createLoggerWithPreset('app', 'development');
-```
+## 📊 核心优势
 
-### 4. 多种预设配置
-```javascript
-// 开发环境
-const devLogger = await createLoggerWithPreset('app', 'development');
+| 特性 | 优势 |
+|:--- |:--- |
+| **代码简洁** | 将 100+ 行的设置代码简化为 1 行。|
+| **完美兼容 Next.js** | 零配置，自动解决 Webpack 和边缘环境的兼容性问题。|
+| **灵活的传输器** | 支持 Pino, Winston, Console，并能根据环境智能选择。|
+| **高可靠性** | 具备自动回退机制，确保日志系统在任何情况下都能工作。|
+| **极低维护成本** | “即插即用”的设计，几乎无需维护。|
 
-// 生产环境
-const prodLogger = await createLoggerWithPreset('app', 'production');
 
-// Next.js 兼容
-const nextLogger = await createLoggerWithPreset('app', 'nextjsCompatible');
+## 🚀 快速上手
 
-// 仅控制台
-const consoleLogger = await createLoggerWithPreset('app', 'consoleOnly');
-```
+### 1. 安装
 
-## 📊 迁移效果对比
-
-| 指标 | 旧版 (pino-support) | 新版 (loglayer-support) | 改善 |
-|------|---------------------|-------------------------|------|
-| 代码行数 | 136 行 | 1 行 | **减少 99%+** |
-| Next.js 兼容性 | ❌ 有问题 | ✅ 完美解决 | **彻底解决** |
-| 传输器支持 | 仅 Pino | Pino/Winston/Console | **更灵活** |
-| 自动回退 | ❌ 无 | ✅ 有 | **更可靠** |
-| 维护复杂度 | 高 | 极低 | **大幅简化** |
-
-## 🔍 故障排除
-
-### 传输器依赖问题
-如果某个传输器测试失败，请安装相应依赖：
+在项目根目录执行以下命令，pnpm 会自动安装所有工作区依赖。
 
 ```bash
-# Pino 传输器
-npm install @loglayer/transport-pino pino pino-pretty
-
-# Winston 传输器
-npm install @loglayer/transport-winston winston
-
-# SimplePrettyTerminal 传输器
-npm install @loglayer/transport-simple-pretty-terminal
-
-# Redaction 插件
-npm install @loglayer/plugin-redaction
+pnpm install
 ```
 
-### Next.js 兼容性问题
-如果在 Next.js 环境中遇到问题，使用兼容预设：
+### 2. 运行示例
 
-```javascript
-const logger = await createLoggerWithPreset('app', 'nextjsCompatible');
+我们提供了多个脚本来演示不同功能：
+
+| 命令 | 描述 |
+| --- | --- |
+| `npm run test:basic` | 演示环境检测、预设配置、上下文绑定等核心功能。 |
+| `npm run test:transports` | 测试并对比 Console, Winston, Pino 等多种日志传输器的表现。 |
+| `npm run test:migration` | 展示了如何轻松集成到现有项目中。 |
+| `npm run test:all` | 运行所有示例。 |
+
+## 📂 项目结构
+
+```
+src/
+├── basic-usage.js        # 基础功能演示
+├── transport-tests.js    # 多种传输器对比测试
+└── migration-example.js  # 集成示例
 ```
 
 ## 💡 最佳实践
 
-1. **使用预设配置**：优先使用内置预设，减少配置复杂度
-2. **Next.js 项目**：使用 `createNextjsLoggerSync` 获得最佳兼容性
-3. **上下文绑定**：充分利用 `forRequest`、`forUser`、`forModule` 等方法
-4. **错误处理**：使用 `logError` 方法记录结构化错误信息
-5. **性能监控**：使用 `logPerformance` 方法记录性能指标
-
-## 📚 相关文档
-
-- [LogLayer 官方文档](https://loglayer.dev)
-- [@yai-nexus/loglayer-support README](../../packages/loglayer-support/README.md)
-- [迁移指南](./src/migration-example.js)
+- **对于 Next.js 项目**：强烈推荐使用 `createNextjsLoggerSync`，它能提供最佳的兼容性和性能。
+- **对于通用 Node.js 项目**：使用 `createLoggerWithPreset`，并根据环境（`development` 或 `production`）选择合适的预设。
+- **利用上下文**：充分使用 `.forRequest()`, `.forUser()` 等方法来创建结构化的、易于查询的日志。
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request 来改进示例项目！
+如果您发现任何问题或有改进建议，欢迎提交 Issue 或 Pull Request！

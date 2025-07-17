@@ -1,207 +1,113 @@
-# YAI Loguru Support
+# @yai-nexus/loguru-support
 
-统一的 Python 日志解决方案，提供云服务集成和标准化配置。
+`@yai-nexus/loguru-support` 是一个为 Python 应用设计的、统一且可扩展的日志解决方案。它基于强大的 [Loguru](https://loguru.readthedocs.io/) 库，并在此之上提供了标准化的配置、开箱即用的文件轮转策略以及与云服务的无缝集成。
 
-## 功能特性
+## 🌟 核心特性
 
-- 🔧 **统一配置接口**：与 pino-support 语义一致的配置体验
-- 📁 **智能目录策略**：按小时/天自动分目录，支持软链接和 README
-- 🚀 **高性能异步传输**：基于官方 SDK 的批量、异步日志发送
-- 🌥️ **多云支持**：支持阿里云 SLS、Datadog、Sentry 等主流云服务
-- 🛡️ **生产级可靠性**：优雅停机、错误重试、连接保活
-- 📊 **内置监控**：性能指标、错误率统计、健康检查
+- **一键式配置**: 提供 `setup_dev_logging`, `setup_prod_logging` 等便捷函数，无需手动配置即可拥有开发和生产环境的最佳日志实践。
+- **智能文件轮转**: 内置按小时或按天轮转日志文件的策略，自动管理日志目录，并创建 `current` 软链接方便追踪最新日志。
+- **云服务集成**: 提供可插拔的云日志服务 Sink，目前已支持阿里云 SLS，并为其他服务（如 DataDog, Sentry）预留了扩展点。
+- **生产就绪**: 为云服务 Sink 提供异步批量发送、优雅停机、错误重试等生产级特性，确保日志数据不丢失。
+- **原生 Loguru 体验**: 完全兼容 Loguru 的所有 API，您无需改变现有的日志记录习惯。
 
-## 支持的云服务
+## 💿 安装
 
-| 服务 | 状态 | 安装命令 |
-|------|------|----------|
-| 阿里云 SLS | ✅ 已实现 | `pip install yai-loguru-support[sls]` |
-| Datadog | 🚧 开发中 | `pip install yai-loguru-support[datadog]` |
-| Sentry | 🚧 开发中 | `pip install yai-loguru-support[sentry]` |
+1.  **基础安装**:
+    ```bash
+    pip install yai-loguru-support
+    ```
 
-## 快速开始
+2.  **安装特定云服务支持**:
+    ```bash
+    # 安装阿里云 SLS 支持
+    pip install "yai-loguru-support[sls]"
+    
+    # 将来支持 Sentry
+    # pip install "yai-loguru-support[sentry]"
+    ```
+    
+3.  **安装所有可选依赖**:
+    ```bash
+    pip install "yai-loguru-support[all]"
+    ```
 
-### 1. 安装
+## 🚀 快速上手
 
-```bash
-# 基础安装
-pip install yai-loguru-support
+### 推荐：使用便捷函数
 
-# 安装阿里云 SLS 支持
-pip install yai-loguru-support[sls]
-
-# 安装所有支持的云服务
-pip install yai-loguru-support[all]
-```
-
-### 2. 统一日志配置
-
-```python
-from yai_loguru_support import setup_logging
-from loguru import logger
-
-# 开发环境配置（美化控制台 + 小时级文件）
-setup_logging("my-service", {
-    "level": "debug",
-    "console": {"enabled": True, "pretty": True},
-    "file": {"enabled": True, "strategy": "hourly"}
-})
-
-# 生产环境配置（JSON控制台 + 小时级文件）
-setup_logging("my-service", {
-    "level": "info", 
-    "console": {"enabled": True, "pretty": False},
-    "file": {"enabled": True, "strategy": "hourly"}
-})
-
-# 正常使用 loguru
-logger.info("应用启动", version="1.0.0")
-```
-
-### 3. 便捷配置函数
+这是最简单、最推荐的使用方式。
 
 ```python
 from yai_loguru_support import setup_dev_logging, setup_prod_logging
-
-# 开发环境 (DEBUG级别，美化输出，小时级文件)
-setup_dev_logging("my-service")
-
-# 生产环境 (INFO级别，JSON输出，小时级文件)
-setup_prod_logging("my-service")
-
-# 仅控制台 (适用于容器环境)
-setup_console_only_logging("my-service")
-```
-
-### 4. 阿里云 SLS 集成
-
-```python
-from yai_loguru_support import setup_logging
-from yai_loguru_support.sls import AliyunSlsSink
-from loguru import logger
-
-# 1. 首先设置基础日志配置（控制台 + 文件）
-setup_logging("my-service")
-
-# 2. 添加 SLS 云端日志
-sls_sink = AliyunSlsSink.from_env()  # 从环境变量自动配置
-logger.add(sls_sink, serialize=True, level="INFO")
-
-# 3. 正常使用 loguru（现在会同时输出到控制台、文件和SLS）
-logger.info("Hello from Aliyun SLS!", user_id="123", action="login")
-
-# 4. 优雅停机
-import atexit
-atexit.register(sls_sink.stop)
-```
-
-### 5. 在 FastAPI 中使用
-
-```python
-from fastapi import FastAPI
-from yai_loguru_support import setup_prod_logging
-from yai_loguru_support.sls import AliyunSlsSink
 from loguru import logger
 import os
 
-app = FastAPI()
-
-# 设置统一日志配置
+# 根据环境变量选择配置
+# 在开发环境，日志会以美化格式打印到控制台，并按小时写入文件。
+# 在生产环境，日志会以 JSON 格式打印，便于机器解析。
 if os.getenv("ENV") == "production":
-    setup_prod_logging("my-api")
-    
-    # 生产环境添加 SLS
+    setup_prod_logging("my-service")
+else:
+    setup_dev_logging("my-service")
+
+# 然后就可以在任何地方使用标准的 loguru logger 了
+logger.info("服务已启动", version="1.0.0")
+logger.warning("这是一个警告信息")
+```
+
+### 深入：集成阿里云 SLS
+
+当您需要在生产环境中将日志发送到云端时，可以轻松添加云服务 Sink。
+
+```python
+import os
+from loguru import logger
+from yai_loguru_support import setup_prod_logging
+from yai_loguru_support.sls import AliyunSlsSink
+from yai_loguru_support.utils import create_production_setup
+
+# 1. 像往常一样设置基础日志（文件和控制台）
+setup_prod_logging("my-api-service")
+
+# 2. 从环境变量创建并添加 AliyunSlsSink
+#    (需要预先设置 SLS_ENDPOINT, SLS_AK_ID 等环境变量)
+try:
     sls_sink = AliyunSlsSink.from_env()
     logger.add(sls_sink, serialize=True, level="INFO")
     
-    @app.on_event("shutdown")
-    async def shutdown_event():
-        await sls_sink.stop()
-else:
-    setup_dev_logging("my-api")
+    # 3. (关键) 设置优雅停机，确保所有日志都被发送
+    create_production_setup([sls_sink])
+    
+    logger.info("已成功集成阿里云 SLS。")
+except Exception as e:
+    logger.warning(f"集成阿里云 SLS 失败: {e}")
 
-@app.get("/")
-async def root():
-    logger.info("API called", endpoint="/", method="GET")
-    return {"message": "Hello World"}
+
+# 您的应用代码...
+logger.info("处理了一个重要请求", user_id="user-123")
 ```
 
-## 日志目录结构
+## 📁 智能日志目录结构
 
-统一配置会在项目根目录下创建结构化的日志目录：
+使用文件日志时，`loguru-support` 会自动创建结构化的目录，非常便于管理和查阅。
 
 ```
 logs/
-├── current -> 20241213-14          # 当前小时软链接
-├── 20241213-14/                    # 按小时分目录
-│   ├── README.md                   # 目录说明
-│   ├── my-service.log              # 服务日志
-│   └── python-backend.log          # 其他服务日志
-└── 20241213-15/                    # 下一小时目录
+├── current -> 20241213-14/     # 指向当前小时目录的软链接
+├── 20241213-14/               # 按小时创建的目录
+│   ├── README.md              # 自动生成的说明文件
+│   └── my-service.log         # 您服务的日志文件
+└── 20241213-15/
     └── my-service.log
 ```
 
-## 配置参数说明
+## 🧪 运行测试
 
-### LoggerConfig 配置结构
-
-```python
-{
-    "level": "info",                    # 日志级别: debug, info, warn, error
-    "console": {
-        "enabled": True,                # 是否启用控制台输出
-        "pretty": True                  # 是否美化输出（开发模式）
-    },
-    "file": {
-        "enabled": True,                # 是否启用文件输出
-        "baseDir": "logs",              # 日志根目录
-        "strategy": "hourly",           # 目录策略: hourly, daily, simple
-        "maxSize": None,                # 文件最大大小（可选）
-        "maxFiles": None                # 保留文件数量（可选）
-    }
-}
-```
-
-### 目录策略
-
-- **hourly**: 按小时分目录 `YYYYMMDD-HH/`，适合高频日志
-- **daily**: 按天分目录 `YYYYMMDD/`，适合中等频率
-- **simple**: 单一文件，适合低频日志
-
-## 环境变量
-
+在 `packages/loguru-support` 目录下运行：
 ```bash
-# 阿里云 SLS 配置
-SLS_ENDPOINT=cn-hangzhou.log.aliyuncs.com
-SLS_AK_ID=your_access_key_id
-SLS_AK_KEY=your_access_key_secret
-SLS_PROJECT=your_log_project
-SLS_LOGSTORE=your_log_store
-
-# 统一日志配置（可选）
-LOG_LEVEL=info
-LOG_TO_FILE=true
-LOG_DIR=logs
-```
-
-## 开发
-
-```bash
-# 克隆项目
-git clone https://github.com/yai-nexus/yai-nexus-agentkit.git
-cd yai-nexus-agentkit/packages/loguru-support
-
-# 安装开发依赖
-pip install -e ".[dev,all]"
-
-# 运行测试
 pytest
-
-# 代码格式化
-black .
-ruff check .
 ```
 
-## 许可证
+## 🤝 贡献
 
-MIT License
+我们欢迎任何形式的社区贡献，无论是新的云服务 Sink 实现还是功能改进。
