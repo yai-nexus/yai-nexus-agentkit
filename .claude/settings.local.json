@@ -36,12 +36,10 @@
       "Bash(grep:*)",
       "Bash(npm run dev:*)",
       "Bash(pnpm:*)",
-      "Bash(git push:*)",
       "Bash(git remote remove:*)",
       "Bash(pnpm install:*)",
       "Bash(pnpm --filter @yai-nexus/fekit build)",
       "Bash(pnpm --filter nextjs-app build)",
-      "Bash(cp:*)",
       "Bash(pip --version)",
       "Bash(source:*)",
       "Bash(timeout:*)",
@@ -71,7 +69,13 @@
       "Bash(chmod:*)",
       "Bash(./scripts/start-all-examples.sh:*)",
       "Bash(./scripts/run-logging-demos.sh:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh release delete:*)",
+      "Bash(gh api:*)",
+      "Bash(./scripts/validate-workflows.sh:*)",
+      "Bash(gh workflow:*)"
     ],
     "deny": []
   }

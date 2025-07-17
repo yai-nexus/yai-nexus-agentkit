@@ -16,20 +16,17 @@ on:
         type: string
         default: '3.11'
         description: 'Python version to use'
-      pypi-url:
+    secrets:
+      PYPI_API_TOKEN:
         required: true
-        type: string
-        description: 'PyPI project URL for environment'
+        description: 'PyPI API token for authentication'
 
 jobs:
   publish:
     name: Publish ${{ inputs.package-name }} to PyPI
     runs-on: ubuntu-latest
     permissions:
-      id-token: write # This is required for trusted publishing
-    environment:
-      name: pypi
-      url: ${{ inputs.pypi-url }}
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -49,3 +46,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: ${{ inputs.package-path }}/dist/
+          password: ${{ secrets.PYPI_API_TOKEN }}
