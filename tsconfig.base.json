@@ -19,6 +19,8 @@
     "paths": {
       "@yai-nexus/fekit": ["packages/fekit/src/index.ts"],
       "@yai-nexus/fekit/*": ["packages/fekit/src/*"],
+      "@yai-nexus/loglayer-support": ["packages/loglayer-support/src/index.ts"],
+      "@yai-nexus/loglayer-support/*": ["packages/loglayer-support/src/*"],
       "@yai-nexus/pino-support": ["packages/pino-support/src/index.ts"],
       "@yai-nexus/pino-support/*": ["packages/pino-support/src/*"]
     }
