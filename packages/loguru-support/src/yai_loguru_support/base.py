@@ -8,12 +8,11 @@ ensuring consistent behavior and standardized configuration across different pro
 import abc
 import asyncio
 import time
-from typing import Any, Dict, Optional, Union, Callable
+from typing import Any, Dict, Optional
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor
 import logging
 
-from loguru import logger as _logger
 
 
 class SinkError(Exception):

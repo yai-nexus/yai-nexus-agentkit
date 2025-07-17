@@ -13,7 +13,7 @@ import os
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 try:
     from yai_nexus_agentkit.core.logger_config import LogPathStrategy

@@ -75,7 +75,8 @@
       "Bash(gh release delete:*)",
       "Bash(gh api:*)",
       "Bash(./scripts/validate-workflows.sh:*)",
-      "Bash(gh workflow:*)"
+      "Bash(gh workflow:*)",
+      "Bash(npx nx:*)"
     ],
     "deny": []
   }

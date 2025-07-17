@@ -7,9 +7,8 @@
 """
 
 import sys
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional
 from loguru import logger
-from pathlib import Path
 
 from .strategies import HourlyDirectoryStrategy, DailyDirectoryStrategy, SimpleFileStrategy
 

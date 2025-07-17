@@ -31,8 +31,7 @@ Usage:
 import os
 import sys
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import Optional, Dict, Any, Callable
+from typing import Optional, Dict, Any
 from loguru import logger as _logger
 
 
@@ -120,7 +119,7 @@ class LoggerConfigurator:
             
             # 记录策略元数据
             metadata = path_strategy.get_metadata()
-            _logger.info(f"File logging configured", 
+            _logger.info("File logging configured", 
                         extra={
                             "log_path": log_path,
                             "strategy": metadata.get("strategy_name", "unknown"),

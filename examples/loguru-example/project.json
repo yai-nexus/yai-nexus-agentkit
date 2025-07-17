@@ -1,21 +1,21 @@
 {
-  "name": "sls-loguru-example",
-  "root": "examples/sls-loguru-example",
+  "name": "loguru-example",
+  "root": "examples/loguru-example",
   "projectType": "application",
-  "sourceRoot": "examples/sls-loguru-example",
+  "sourceRoot": "examples/loguru-example",
   "targets": {
     "serve": {
       "executor": "nx:run-commands",
       "options": {
         "command": "source ../../.venv/bin/activate && python main.py",
-        "cwd": "examples/sls-loguru-example"
+        "cwd": "examples/loguru-example"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
         "command": "source ../../.venv/bin/activate && pytest tests/ -v",
-        "cwd": "examples/sls-loguru-example"
+        "cwd": "examples/loguru-example"
       }
     }
   },

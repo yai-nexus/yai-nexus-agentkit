@@ -4,7 +4,6 @@ AGUIAdapter集成测试
 测试完整的langgraph -> AGUIAdapter -> AG-UI事件流转换
 """
 
-import json
 from typing import Annotated, Dict, List
 
 import pytest

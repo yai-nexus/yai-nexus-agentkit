@@ -4,9 +4,8 @@ Tests for base sink functionality.
 
 import asyncio
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
-from yai_loguru_support.base import BaseSink, SinkConfig, SinkMetrics, SinkError
+from yai_loguru_support.base import BaseSink, SinkConfig, SinkMetrics
 
 
 class MockSink(BaseSink):

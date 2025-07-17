@@ -24,7 +24,6 @@ from ag_ui.core.events import (
 )
 
 from ..core.events import _INTERNAL_EVENT_MARKER
-from .errors import EventTranslationError
 from .langgraph_events import LangGraphEventType
 from .tool_call_tracker import ToolCallTracker
 

@@ -53,7 +53,7 @@ pnpm --filter @yai-nexus/fekit build   # Build frontend SDK
 # Logging examples (unified configuration)
 pnpm dev:example:sls-pino       # Run SLS pino example (Node.js)
 cd examples/sls-pino-example && npm run dev
-cd examples/sls-loguru-example && python main.py
+cd examples/loguru-example && python main.py
 ```
 
 ### Testing

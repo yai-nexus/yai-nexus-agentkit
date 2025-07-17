@@ -34,13 +34,13 @@ async def main():
     
     # 1. 设置统一的基础日志配置 (控制台 + 文件)
     # 使用根目录的 logs 文件夹，与其他服务保持一致
-    setup_logging("sls-loguru-example", {
+    setup_logging("loguru-example", {
         "level": "info",
         "console": {"enabled": True, "pretty": True},
         "file": {"enabled": True, "strategy": "hourly", "baseDir": "../../logs"}
     })
     
-    logger.info("启动 SLS 日志集成示例", service="sls-loguru-example")
+    logger.info("启动 SLS 日志集成示例", service="loguru-example")
     
     # 2. 检查必要的环境变量
     required_vars = ["SLS_ENDPOINT", "SLS_AK_ID", "SLS_AK_KEY", "SLS_PROJECT", "SLS_LOGSTORE"]

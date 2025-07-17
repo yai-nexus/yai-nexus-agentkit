@@ -5,7 +5,7 @@ Python backend example for yai-nexus-fekit, using AGUIAdapter.
 import os
 import time
 import uuid
-from typing import Annotated, Any, Dict, List, TypedDict
+from typing import Annotated, Dict, List, TypedDict
 
 # 核心依赖
 from ag_ui.core import RunAgentInput
@@ -18,9 +18,8 @@ from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph
 from langgraph.graph.message import add_messages
 from loguru import logger
-from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
-from yai_loguru_support import setup_dev_logging, setup_logging, setup_prod_logging
+from yai_loguru_support import setup_logging
 from yai_nexus_agentkit.adapter.agui_adapter import AGUIAdapter
 from yai_nexus_agentkit.adapter.models import Task
 

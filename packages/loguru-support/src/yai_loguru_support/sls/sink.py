@@ -9,7 +9,7 @@ import asyncio
 import json
 import time
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 try:
     from aliyun.log import LogClient, PutLogsRequest, LogItem
