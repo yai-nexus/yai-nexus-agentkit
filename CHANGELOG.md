@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-01-17
+
+### 🔧 Fixes
+
+#### GitHub Actions 工作流修复
+- **修复** GitHub Actions 发布工作流中的包引用错误
+- **更新** `.github/workflows/npm-publish.yml` 和 `.github/workflows/publish-all.yml`
+- **移除** 已删除的 `pino-support` 包引用，添加 `loglayer-support` 包配置
+- **确保** 自动化发布流程正常工作
+
+#### 项目结构优化
+- **重命名** `examples/sls-loguru-example` 为 `examples/loguru-example`
+- **更新** 所有相关配置文件和脚本引用
+- **统一** 示例项目命名规范
+
+---
+
 ## [0.3.0] - 2025-01-16
 
 ### 🎉 Major Features
