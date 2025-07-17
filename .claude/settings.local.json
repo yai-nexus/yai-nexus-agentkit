@@ -77,7 +77,13 @@
       "Bash(./scripts/validate-workflows.sh:*)",
       "Bash(gh workflow:*)",
       "Bash(npx nx:*)",
-      "Bash(./scripts/services.sh:*)"
+      "Bash(./scripts/services.sh:*)",
+      "WebFetch(domain:localhost)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "Bash(scripts/services.sh restart:*)",
+      "Bash(bash scripts/services.sh:*)"
     ],
     "deny": []
   }

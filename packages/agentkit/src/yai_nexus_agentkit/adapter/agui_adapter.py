@@ -66,12 +66,7 @@ class AGUIAdapter:
             effective_thread_id = task.thread_id if task.thread_id else task.id
 
             logger.info(
-                "Starting event stream for task",
-                task_id=task.id,
-                query=task.query,
-                thread_id=task.thread_id,
-                effective_thread_id=effective_thread_id,
-                agent_type=type(self.agent).__name__,
+                f"Starting event stream for task: task_id={task.id}, query={task.query}, thread_id={task.thread_id}, effective_thread_id={effective_thread_id}, agent_type={type(self.agent).__name__}"
             )
 
             # 步骤 2: 产生 AG-UI 的 "开始" 事件
@@ -81,9 +76,7 @@ class AGUIAdapter:
                 run_id=task.id,  # 每次运行的唯一标识
             )
             logger.info(
-                "Sending event",
-                event_type=run_started.type,
-                event_data=run_started.model_dump(),
+                f"Sending event: event_type={run_started.type}, event_data={run_started.model_dump()}"
             )
             yield run_started
 
@@ -94,9 +87,7 @@ class AGUIAdapter:
                 try:
                     async for ag_ui_event in event_translator.translate_event(event):
                         logger.info(
-                            "Sending event",
-                            event_type=ag_ui_event.type,
-                            event_data=ag_ui_event.model_dump(),
+                            f"Sending event: event_type={ag_ui_event.type}, event_data={ag_ui_event.model_dump()}"
                         )
                         yield ag_ui_event
                 except EventTranslationError as e:
@@ -104,9 +95,7 @@ class AGUIAdapter:
                     continue
                 except Exception as e:
                     logger.exception(
-                        "Unexpected error translating event",
-                        error_type=type(e).__name__,
-                        error_message=str(e),
+                        f"Unexpected error translating event: error_type={type(e).__name__}, error_message={str(e)}"
                     )
                     continue
 
@@ -124,24 +113,17 @@ class AGUIAdapter:
             yield run_finished
 
             logger.info(
-                "AG-UI streaming completed successfully",
-                task_id=task.id,
-                thread_id=effective_thread_id,
+                f"AG-UI streaming completed successfully: task_id={task.id}, thread_id={effective_thread_id}"
             )
 
         except Exception as e:
             logger.exception(
-                "AGUIAdapter error",
-                task_id=task.id,
-                error_type=type(e).__name__,
-                error_message=str(e),
+                f"AGUIAdapter error: task_id={task.id}, error_type={type(e).__name__}, error_message={str(e)}"
             )
             # 步骤 5: 错误处理
             run_error = RunErrorEvent(type=EventType.RUN_ERROR, message=str(e))
             logger.info(
-                "Sending event",
-                event_type=run_error.type,
-                event_data=run_error.model_dump(),
+                f"Sending event: event_type={run_error.type}, event_data={run_error.model_dump()}"
             )
             yield run_error
 
@@ -161,10 +143,7 @@ class AGUIAdapter:
         encoder = EventEncoder(accept=accept_header)
 
         logger.info(
-            "Creating official AG-UI stream",
-            task_id=task.id,
-            thread_id=task.thread_id,
-            accept_header=accept_header,
+            f"Creating official AG-UI stream: task_id={task.id}, thread_id={task.thread_id}, accept_header={accept_header}"
         )
 
         try:
@@ -175,10 +154,7 @@ class AGUIAdapter:
 
         except Exception as e:
             logger.exception(
-                "Error in official stream creation",
-                task_id=task.id,
-                error_type=type(e).__name__,
-                error_message=str(e),
+                f"Error in official stream creation: task_id={task.id}, error_type={type(e).__name__}, error_message={str(e)}"
             )
             # 发送错误事件，使用官方编码器
             error_event = RunErrorEvent(type="RUN_ERROR", message=str(e))

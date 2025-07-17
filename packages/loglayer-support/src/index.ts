@@ -180,7 +180,20 @@ function createChainedLoggerProxy(
 ): IEnhancedLogger {
   const handler: ProxyHandler<any> = {
     get(target, prop) {
-      // 如果是日志方法，异步执行
+      // 如果 globalLogger 已经初始化，直接同步返回
+      if (globalLogger) {
+        const chainMethod = globalLogger[methodName as keyof IEnhancedLogger];
+        if (typeof chainMethod === "function") {
+          const childLogger = (chainMethod as any).apply(globalLogger, methodArgs);
+          const targetMethod = childLogger[prop as keyof IEnhancedLogger];
+          if (typeof targetMethod === "function") {
+            return targetMethod.bind(childLogger);
+          }
+          return targetMethod;
+        }
+      }
+
+      // 如果还未初始化，返回异步执行的方法
       return async (...args: any[]) => {
         const logger = await getGlobalLogger(serviceName);
 
