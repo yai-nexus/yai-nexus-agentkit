@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2025-01-17
+
+### 🔧 Version Synchronization
+
+#### 版本号统一
+- **统一** 所有包版本号到 0.3.2
+- **修复** 版本号不一致导致的发布失败问题
+- **确保** 所有包（agentkit, loguru-support, fekit, loglayer-support）版本同步
+
+#### 包版本更新
+- `yai-nexus-agentkit`: 0.2.6 → 0.3.2
+- `yai-loguru-support`: 0.2.6 → 0.3.2
+- `@yai-nexus/fekit`: 0.3.0 → 0.3.2
+- `@yai-nexus/loglayer-support`: 1.0.0 → 0.3.2
+
+---
+
 ## [0.3.1] - 2025-01-17
 
 ### 🔧 Fixes
