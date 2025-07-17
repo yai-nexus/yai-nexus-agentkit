@@ -83,7 +83,11 @@
       "mcp__playwright__browser_type",
       "mcp__playwright__browser_click",
       "Bash(scripts/services.sh restart:*)",
-      "Bash(bash scripts/services.sh:*)"
+      "Bash(bash scripts/services.sh:*)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_wait_for"
     ],
     "deny": []
   }
