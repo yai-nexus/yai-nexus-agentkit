@@ -37,6 +37,7 @@ jobs:
       package-name: 'yai-nexus-agentkit'
       package-path: './packages/agentkit'
       pypi-url: 'https://pypi.org/p/yai-nexus-agentkit'
+    secrets: inherit
 
   publish-loguru-support:
     name: Publish yai-loguru-support
@@ -46,3 +47,4 @@ jobs:
       package-name: 'yai-loguru-support'
       package-path: './packages/loguru-support'
       pypi-url: 'https://pypi.org/p/yai-loguru-support'
+    secrets: inherit
