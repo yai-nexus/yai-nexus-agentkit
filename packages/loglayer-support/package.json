@@ -83,5 +83,8 @@
   "bugs": {
     "url": "https://github.com/yai-nexus/yai-nexus-agentkit/issues"
   },
-  "homepage": "https://github.com/yai-nexus/yai-nexus-agentkit#readme"
+  "homepage": "https://github.com/yai-nexus/yai-nexus-agentkit#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }
