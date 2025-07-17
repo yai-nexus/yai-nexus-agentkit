@@ -76,7 +76,8 @@
       "Bash(gh api:*)",
       "Bash(./scripts/validate-workflows.sh:*)",
       "Bash(gh workflow:*)",
-      "Bash(npx nx:*)"
+      "Bash(npx nx:*)",
+      "Bash(./scripts/services.sh:*)"
     ],
     "deny": []
   }

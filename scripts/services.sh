@@ -68,18 +68,18 @@ start_service() {
             sleep 2
             
             log_path=$(get_log_path "nextjs")
-            nohup nx dev nextjs-app > "$log_path" 2>&1 &
+            nohup pnpm dev:example:next > "$log_path" 2>&1 &
             echo "  📱 Next.js 应用已启动 (日志: $log_path)"
             echo "  🌐 访问地址: http://localhost:3000"
             ;;
         python)
             echo -e "${GREEN}🚀 启动 Python 后端...${NC}"
-            pkill -f "serve.*python-backend" 2>/dev/null || true
+            pkill -f "python.*main.py" 2>/dev/null || true
             lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null || true
             sleep 2
             
             log_path=$(get_log_path "python")
-            nohup nx serve python-backend > "$log_path" 2>&1 &
+            nohup pnpm dev:example:python > "$log_path" 2>&1 &
             echo "  🐍 Python 后端已启动 (日志: $log_path)"
             echo "  🌐 访问地址: http://localhost:8000"
             ;;
@@ -102,12 +102,12 @@ stop_service() {
     case $service in
         nextjs)
             echo -e "${RED}🛑 停止 Next.js 应用...${NC}"
-            pkill -f "dev.*nextjs-app" 2>/dev/null && echo "  ✅ Next.js 应用已停止" || echo "  ℹ️  Next.js 应用未运行"
+            pkill -f "dev:example:next" 2>/dev/null && echo "  ✅ Next.js 应用已停止" || echo "  ℹ️  Next.js 应用未运行"
             lsof -ti:3000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 端口 3000 已释放" || echo "  ℹ️  端口 3000 未占用"
             ;;
         python)
             echo -e "${RED}🛑 停止 Python 后端...${NC}"
-            pkill -f "serve.*python-backend" 2>/dev/null && echo "  ✅ Python 后端已停止" || echo "  ℹ️  Python 后端未运行"
+            pkill -f "dev:example:python" 2>/dev/null && echo "  ✅ Python 后端已停止" || echo "  ℹ️  Python 后端未运行"
             lsof -ti:8000 2>/dev/null | xargs kill -9 2>/dev/null && echo "  ✅ 端口 8000 已释放" || echo "  ℹ️  端口 8000 未占用"
             ;;
         all)
@@ -127,7 +127,7 @@ show_status() {
     echo -e "${BLUE}📊 服务状态:${NC}"
     
     # 检查 Next.js
-    if pgrep -f "dev.*nextjs-app" > /dev/null; then
+    if pgrep -f "dev:example:next" > /dev/null; then
         echo -e "  ✅ Next.js 应用 - 运行中"
         echo -e "     🌐 http://localhost:3000"
     else
@@ -135,7 +135,7 @@ show_status() {
     fi
     
     # 检查 Python
-    if pgrep -f "serve.*python-backend" > /dev/null; then
+    if pgrep -f "dev:example:python" > /dev/null; then
         echo -e "  ✅ Python 后端 - 运行中"
         echo -e "     🌐 http://localhost:8000"
     else
