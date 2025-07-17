@@ -1,0 +1,48 @@
+name: Publish Packages
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  # NPM Package Publishing Jobs
+  publish-fekit:
+    name: Publish @yai-nexus/fekit
+    if: startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'fekit-v')
+    uses: ./.github/workflows/reusable-npm-publish.yml
+    with:
+      package-name: '@yai-nexus/fekit'
+      package-path: './packages/fekit'
+      pnpm-filter: '@yai-nexus/fekit'
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  publish-loglayer-support:
+    name: Publish @yai-nexus/loglayer-support
+    if: startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'loglayer-support-v')
+    uses: ./.github/workflows/reusable-npm-publish.yml
+    with:
+      package-name: '@yai-nexus/loglayer-support'
+      package-path: './packages/loglayer-support'
+      pnpm-filter: '@yai-nexus/loglayer-support'
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # PyPI Package Publishing Jobs
+  publish-agentkit:
+    name: Publish yai-nexus-agentkit
+    if: startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'agentkit-v')
+    uses: ./.github/workflows/reusable-pypi-publish.yml
+    with:
+      package-name: 'yai-nexus-agentkit'
+      package-path: './packages/agentkit'
+      pypi-url: 'https://pypi.org/p/yai-nexus-agentkit'
+
+  publish-loguru-support:
+    name: Publish yai-loguru-support
+    if: startsWith(github.ref_name, 'v') || startsWith(github.ref_name, 'loguru-support-v')
+    uses: ./.github/workflows/reusable-pypi-publish.yml
+    with:
+      package-name: 'yai-loguru-support'
+      package-path: './packages/loguru-support'
+      pypi-url: 'https://pypi.org/p/yai-loguru-support'

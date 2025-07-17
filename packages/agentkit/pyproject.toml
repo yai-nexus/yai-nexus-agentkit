@@ -7,7 +7,7 @@ line-length = 120
 
 [project]
 name = "yai-nexus-agentkit"
-version = "0.3.2"
+version = "0.3.3"
 description = "A FastAPI-first AI agent toolkit with AG-UI protocol support for building modern streaming AI applications."
 authors = [
     { name="YAI-Nexus", email="contact@yai-nexus.com" },

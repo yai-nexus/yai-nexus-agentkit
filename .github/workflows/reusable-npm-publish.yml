@@ -1,0 +1,62 @@
+name: Reusable NPM Publish
+
+on:
+  workflow_call:
+    inputs:
+      package-name:
+        required: true
+        type: string
+        description: 'The NPM package name (e.g., @yai-nexus/fekit)'
+      package-path:
+        required: true
+        type: string
+        description: 'The relative path to the package directory (e.g., ./packages/fekit)'
+      pnpm-filter:
+        required: true
+        type: string
+        description: 'The pnpm filter for building (e.g., @yai-nexus/fekit)'
+      node-version:
+        required: false
+        type: string
+        default: '20'
+        description: 'Node.js version to use'
+      pnpm-version:
+        required: false
+        type: string
+        default: '9'
+        description: 'pnpm version to use'
+    secrets:
+      NPM_TOKEN:
+        required: true
+        description: 'NPM authentication token'
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.package-name }} to NPM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm-version }}
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm --filter ${{ inputs.pnpm-filter }} build
+
+      - name: Publish to NPM
+        working-directory: ${{ inputs.package-path }}
+        run: pnpm publish --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

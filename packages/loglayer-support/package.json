@@ -1,6 +1,6 @@
 {
   "name": "@yai-nexus/loglayer-support",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "基于 LogLayer 的统一日志解决方案，解决 Next.js 兼容性问题并提供未来保障",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
