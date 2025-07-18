@@ -93,7 +93,10 @@
       "Bash(scripts/services.sh start:*)",
       "WebFetch(domain:www.copilotkit.ai)",
       "Bash(scripts/services.sh stop:*)",
-      "WebFetch(domain:pypi.org)"
+      "WebFetch(domain:pypi.org)",
+      "Bash(npm ls:*)",
+      "Bash(./scripts/rebuild-all.sh:*)",
+      "Bash(ESLINT_NO_DEV_ERRORS=true pnpm --filter nextjs-app build)"
     ],
     "deny": []
   }

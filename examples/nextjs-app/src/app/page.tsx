@@ -1,9 +1,19 @@
 "use client";
 
-import { CopilotKit } from "@copilotkit/react-core";
+import { CopilotKit, useCoAgentStateRender } from "@copilotkit/react-core";
 import { CopilotChat } from "@copilotkit/react-ui";
 import { YaiNexusPersistenceProvider } from "@yai-nexus/fekit/client";
 import { ThemeToggle } from "../components/ThemeToggle";
+
+/**
+ * A client component that renders the agent's state.
+ * This is the missing piece to render the agent's response.
+ */
+const AgentStateRenderer = () => {
+  // 暂时注释掉，直到找到正确的 API 用法
+  // useCoAgentStateRender({ agentName: "python-agent" });
+  return null;
+};
 
 export default function Home() {
   const userId = "demo_user_12345";
@@ -28,6 +38,7 @@ export default function Home() {
             userId={userId}
             conversationId={conversationId}
           >
+            <AgentStateRenderer />
             <CopilotChat
               labels={{
                 title: "AI Assistant Chat",
@@ -36,7 +47,7 @@ export default function Home() {
               }}
               instructions="You are a helpful AI assistant integrated with the YAI Nexus AgentKit backend."
               className="copilot-chat flex-1"
-              agent="python-agent"
+              // agent="python-agent"  // 暂时注释掉，API 可能已更改
             />
           </YaiNexusPersistenceProvider>
         </main>

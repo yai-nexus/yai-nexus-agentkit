@@ -236,4 +236,4 @@ export default function Home() {
 ```
 
 **结论**：
-此修复验证了重构方向的正确性，并确认了 `ExperimentalEmptyAdapter` 的使用没有问题。问题的根本原因在于前端集成模式，而非后端 `HttpAgent` 或 `ServiceAdapter` 的实现。
+此修复验证了重构方向的正确性，但揭示了对 `ExperimentalEmptyAdapter` 使用场景的误解。问题的根本原因比预想的更深，它并非简单的版本或导入错误，而是与 CopilotKit 的核心架构和 `<CopilotChat>` 组件的内部实现有关。
