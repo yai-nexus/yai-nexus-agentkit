@@ -5,7 +5,6 @@ AG-UI 协议适配器
 """
 
 import json
-import logging
 from typing import AsyncGenerator
 
 # 核心依赖 - 直接导入
@@ -18,14 +17,11 @@ from ag_ui.core.events import (
 )
 from ag_ui.encoder import EventEncoder
 from langchain_core.runnables import Runnable
+from loguru import logger
 
 from .errors import EventTranslationError
 from .event_translator import EventTranslator
 from .models import Task
-
-# 设置日志
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)  # 确保日志级别为INFO
 
 # 配置常量
 SSE_PING_INTERVAL = 15  # SSE心跳间隔（秒）
@@ -83,11 +79,12 @@ class AGUIAdapter:
 
             # 统一使用 astream_events，将字符串转换为 LangGraph 期望的格式
             logger.info("Using unified astream_events interface")
-            
+
             # 将字符串查询转换为 LangGraph 兼容的输入格式
             from langchain_core.messages import HumanMessage
+
             agent_input = {"messages": [HumanMessage(content=task.query)]}
-            
+
             logger.info(f"Agent input prepared: {agent_input}")
 
             async for event in self.agent.astream_events(agent_input, version="v2"):
@@ -155,7 +152,9 @@ class AGUIAdapter:
             # 使用核心的 stream_events 方法获取事件对象
             async for event_obj in self.stream_events(task):
                 # 调试：记录编码前的事件对象
-                logger.info(f"Before encoding: event_type={event_obj.type}, event_obj={event_obj.model_dump()}")
+                logger.info(
+                    f"Before encoding: event_type={event_obj.type}, event_obj={event_obj.model_dump()}"
+                )
                 # 使用官方编码器编码事件，自动处理格式兼容性
                 encoded_data = encoder.encode(event_obj)
                 # 调试：记录编码后的数据

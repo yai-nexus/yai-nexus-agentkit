@@ -89,7 +89,9 @@
       "mcp__playwright__browser_press_key",
       "mcp__playwright__browser_wait_for",
       "mcp__playwright__browser_close",
-      "mcp__playwright__browser_snapshot"
+      "mcp__playwright__browser_snapshot",
+      "Bash(scripts/services.sh start:*)",
+      "WebFetch(domain:www.copilotkit.ai)"
     ],
     "deny": []
   }

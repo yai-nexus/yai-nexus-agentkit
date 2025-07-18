@@ -34,6 +34,7 @@ export default function Home() {
             }}
             instructions="You are a helpful AI assistant integrated with the YAI Nexus AgentKit backend."
             className="copilot-chat flex-1"
+            agent="python-agent"
           />
         </YaiNexusPersistenceProvider>
       </main>
