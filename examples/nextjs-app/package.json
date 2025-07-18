@@ -9,9 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ag-ui/client": "0.0.28",
-    "@copilotkit/react-core": "^1.9.1",
-    "@copilotkit/react-ui": "^1.9.1",
+    "@ag-ui/client": "0.0.35",
+    "@copilotkit/react-core": "^1.9.3",
+    "@copilotkit/react-ui": "^1.9.3",
     "@yai-nexus/fekit": "file:../../packages/fekit",
     "@yai-nexus/loglayer-support": "link:../../packages/loglayer-support",
     "dotenv": "^16.4.5",

@@ -91,7 +91,9 @@
       "mcp__playwright__browser_close",
       "mcp__playwright__browser_snapshot",
       "Bash(scripts/services.sh start:*)",
-      "WebFetch(domain:www.copilotkit.ai)"
+      "WebFetch(domain:www.copilotkit.ai)",
+      "Bash(scripts/services.sh stop:*)",
+      "WebFetch(domain:pypi.org)"
     ],
     "deny": []
   }
