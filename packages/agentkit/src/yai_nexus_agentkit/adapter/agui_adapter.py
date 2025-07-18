@@ -25,6 +25,7 @@ from .models import Task
 
 # 设置日志
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # 确保日志级别为INFO
 
 # 配置常量
 SSE_PING_INTERVAL = 15  # SSE心跳间隔（秒）
@@ -80,10 +81,16 @@ class AGUIAdapter:
             )
             yield run_started
 
-            # 统一使用 astream_events，直接传字符串即可
+            # 统一使用 astream_events，将字符串转换为 LangGraph 期望的格式
             logger.info("Using unified astream_events interface")
+            
+            # 将字符串查询转换为 LangGraph 兼容的输入格式
+            from langchain_core.messages import HumanMessage
+            agent_input = {"messages": [HumanMessage(content=task.query)]}
+            
+            logger.info(f"Agent input prepared: {agent_input}")
 
-            async for event in self.agent.astream_events(task.query, version="v2"):
+            async for event in self.agent.astream_events(agent_input, version="v2"):
                 try:
                     async for ag_ui_event in event_translator.translate_event(event):
                         logger.info(
@@ -106,9 +113,7 @@ class AGUIAdapter:
                 run_id=task.id,  # 使用正确的运行ID
             )
             logger.info(
-                "Sending event",
-                event_type=run_finished.type,
-                event_data=run_finished.model_dump(),
+                f"Sending event: event_type={run_finished.type}, event_data={run_finished.model_dump()}"
             )
             yield run_finished
 
@@ -149,8 +154,13 @@ class AGUIAdapter:
         try:
             # 使用核心的 stream_events 方法获取事件对象
             async for event_obj in self.stream_events(task):
+                # 调试：记录编码前的事件对象
+                logger.info(f"Before encoding: event_type={event_obj.type}, event_obj={event_obj.model_dump()}")
                 # 使用官方编码器编码事件，自动处理格式兼容性
-                yield encoder.encode(event_obj)
+                encoded_data = encoder.encode(event_obj)
+                # 调试：记录编码后的数据
+                logger.info(f"After encoding: encoded_data={encoded_data}")
+                yield encoded_data
 
         except Exception as e:
             logger.exception(

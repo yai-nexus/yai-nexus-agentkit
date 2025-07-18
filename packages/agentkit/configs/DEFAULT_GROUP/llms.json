@@ -30,7 +30,7 @@
     },
     {
       "provider": "doubao",
-      "model": "doubao-pro-4k",
+      "model": "doubao-seed-1-6-250615",
       "api_key": "${DOUBAO_API_KEY}",
       "base_url": "https://ark.cn-beijing.volces.com/api/v3"
     }

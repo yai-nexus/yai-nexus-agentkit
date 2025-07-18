@@ -1,1 +1,40 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CopilotKit Chat UI 样式优化 */
+.copilot-chat-container {
+  @apply flex flex-col h-full bg-gray-100 dark:bg-gray-900;
+}
+
+.copilot-chat-header {
+  @apply p-4 border-b border-gray-200 dark:border-gray-700;
+}
+
+.copilot-chat-header-title {
+  @apply text-lg font-semibold text-gray-900 dark:text-white;
+}
+
+.copilot-chat-messages {
+  @apply flex-1 overflow-y-auto p-6 space-y-4;
+}
+
+.copilot-chat-message {
+  @apply flex items-end;
+}
+
+.copilot-chat-message-user {
+  @apply bg-blue-500 text-white rounded-lg px-4 py-2 max-w-lg ml-auto;
+}
+
+.copilot-chat-message-assistant {
+  @apply bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-200 rounded-lg px-4 py-2 max-w-lg mr-auto shadow-sm;
+}
+
+.copilot-chat-form {
+  @apply p-4 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700;
+}
+
+.copilot-chat-input {
+  @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white;
+}

@@ -86,6 +86,41 @@ export class TransportFactory {
   ): Promise<any> {
     const { WinstonTransport } = await import("@loglayer/transport-winston");
     const winston = await import("winston");
+    const path = await import("path");
+    const fs = await import("fs");
+
+    // 确保日志目录存在
+    const logDir = path.resolve(process.cwd(), "logs/current");
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+
+    const transports: any[] = [
+      new winston.transports.Console({
+        format:
+          transportOptions?.format === "pretty"
+            ? winston.format.combine(
+                winston.format.colorize(),
+                winston.format.simple()
+              )
+            : winston.format.json(),
+      }),
+    ];
+
+    // 添加文件传输器
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(logDir, `${serviceName}.log`),
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.errors({ stack: true }),
+          winston.format.json()
+        ),
+        maxsize: 10 * 1024 * 1024, // 10MB
+        maxFiles: 5,
+        tailable: true,
+      })
+    );
 
     const winstonLogger = winston.createLogger({
       level: transportOptions?.level || "info",
@@ -97,17 +132,7 @@ export class TransportFactory {
         winston.format.errors({ stack: true }),
         winston.format.json()
       ),
-      transports: [
-        new winston.transports.Console({
-          format:
-            transportOptions?.format === "pretty"
-              ? winston.format.combine(
-                  winston.format.colorize(),
-                  winston.format.simple()
-                )
-              : winston.format.json(),
-        }),
-      ],
+      transports,
     });
 
     return new WinstonTransport({ logger: winstonLogger });

@@ -28,6 +28,7 @@ from .langgraph_events import LangGraphEventType
 from .tool_call_tracker import ToolCallTracker
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)  # 确保日志级别为INFO
 
 
 class EventTranslator:
@@ -167,7 +168,13 @@ class EventTranslator:
     ) -> AsyncGenerator[BaseEvent, None]:
         """处理聊天模型流式事件"""
         chunk = event_data.get("chunk")
+        
+        # 调试信息：查看实际的事件数据结构
+        logger.info(f"Chat model stream event_data: {event_data}")
+        logger.info(f"Chunk type: {type(chunk)}, chunk: {chunk}")
+        
         if chunk and hasattr(chunk, "content") and chunk.content:
+            logger.info(f"Yielding text chunk: {chunk.content}")
             yield TextMessageChunkEvent(
                 type=EventType.TEXT_MESSAGE_CHUNK,
                 delta=chunk.content,

@@ -2,17 +2,19 @@
  * @fileoverview
  * Client-side entry point for yai-nexus-fekit SDK.
  * This module exports components and utilities that are safe to use in the browser.
+ *
+ * 测试热重载功能 - 修改时间: 23:37
  */
 
 "use client";
 
 // Client-side persistence functionality
-export { 
+export {
   YaiNexusPersistenceProvider,
-  useConversationManager 
-} from './provider';
-export type { YaiNexusPersistenceProviderProps } from './provider';
+  useConversationManager,
+} from "./provider";
+export type { YaiNexusPersistenceProviderProps } from "./provider";
 
 // Storage functionality (browser-safe)
-export { ChatStorage } from './storage';
-export type { ChatMessage, ConversationData } from './storage'; 
+export { ChatStorage } from "./storage";
+export type { ChatMessage, ConversationData } from "./storage";

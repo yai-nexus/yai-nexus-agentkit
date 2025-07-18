@@ -15,7 +15,7 @@ def create_llm():
         logger.info("Using Doubao LLM")
         config = LLMConfig(
             provider=LLMProvider.DOUBAO,
-            model="doubao-pro-4k",
+            model="doubao-seed-1-6-250615",
             api_key=os.getenv("DOUBAO_API_KEY"),
             base_url="https://ark.cn-beijing.volces.com/api/v3"
         )
